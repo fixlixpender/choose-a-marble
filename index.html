@@ -1,0 +1,3638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Choose a Marble! — Family Elimination Race</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Matter.js 2D Rigid-Body Physics Engine -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+
+  <!-- Playful Family-Friendly Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --font-display: 'Fredoka', system-ui, sans-serif;
+      --font-body: 'Nunito', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background: linear-gradient(155deg, #dff4ff 0%, #fffbeb 52%, #ffe8f3 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    h1, h2, h3, .font-display {
+      font-family: var(--font-display);
+    }
+
+    /* Cheerful toy-box card styling */
+    .toy-card {
+      background: rgba(255, 255, 255, 0.95);
+      border: 3px solid #ffffff;
+      box-shadow: 0 12px 30px -6px rgba(59, 130, 246, 0.16), 0 4px 12px -2px rgba(0, 0, 0, 0.05);
+      backdrop-filter: blur(8px);
+    }
+
+    .toy-btn {
+      font-family: var(--font-display);
+      transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.12s ease, filter 0.12s ease;
+    }
+
+    .toy-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      filter: brightness(1.04);
+    }
+
+    .toy-btn:active:not(:disabled) {
+      transform: translateY(2px) scale(0.98);
+    }
+
+    .btn-primary {
+      background: linear-gradient(180deg, #38bdf8 0%, #2563eb 100%);
+      box-shadow: 0 6px 0 #1d4ed8, 0 10px 20px rgba(37, 99, 235, 0.28);
+    }
+    .btn-primary:active:not(:disabled) {
+      box-shadow: 0 2px 0 #1d4ed8, 0 4px 10px rgba(37, 99, 235, 0.22);
+    }
+
+    .btn-green {
+      background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%);
+      box-shadow: 0 6px 0 #15803d, 0 10px 20px rgba(22, 163, 74, 0.28);
+    }
+    .btn-green:active:not(:disabled) {
+      box-shadow: 0 2px 0 #15803d, 0 4px 10px rgba(22, 163, 74, 0.22);
+    }
+
+    .btn-amber {
+      background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+      box-shadow: 0 5px 0 #d97706, 0 8px 16px rgba(245, 158, 11, 0.25);
+    }
+    .btn-amber:active:not(:disabled) {
+      box-shadow: 0 2px 0 #d97706;
+    }
+
+    /* Glossy 3D marble preview swatch */
+    .marble-orb {
+      position: relative;
+      border-radius: 9999px;
+      box-shadow: inset -4px -5px 8px rgba(0, 0, 0, 0.25),
+                  inset 3px 3px 6px rgba(255, 255, 255, 0.45),
+                  0 4px 8px rgba(0, 0, 0, 0.16);
+    }
+    .marble-orb::after {
+      content: '';
+      position: absolute;
+      top: 14%;
+      left: 18%;
+      width: 30%;
+      height: 22%;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.72);
+      transform: rotate(-28deg);
+      pointer-events: none;
+    }
+
+    /* Vertical Reel Viewport */
+    .reel-frame {
+      background: #fffbeb;
+      border: 6px solid #ffffff;
+      box-shadow: 0 20px 45px -10px rgba(37, 99, 235, 0.22), 0 0 0 3px rgba(147, 197, 253, 0.55);
+      border-radius: 28px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    canvas#raceCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.35); opacity: 0; }
+      65% { transform: scale(1.12); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .animate-pop {
+      animation: popIn 0.36s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes floatSlow {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+    .animate-float {
+      animation: floatSlow 3s ease-in-out infinite;
+    }
+
+    @keyframes slowMoPulse {
+      0%, 100% { transform: translate(-50%, 0) scale(1); }
+      50% { transform: translate(-50%, 0) scale(1.06); }
+    }
+    .animate-slowmo {
+      animation: slowMoPulse 0.85s ease-in-out infinite;
+    }
+
+    .slowmo-glow {
+      box-shadow: inset 0 0 36px 8px rgba(251, 191, 36, 0.55), inset 0 0 12px 3px rgba(245, 158, 11, 0.7);
+      transition: opacity 0.28s ease;
+    }
+
+    .bg-bubble {
+      position: fixed;
+      border-radius: 9999px;
+      opacity: 0.35;
+      pointer-events: none;
+      z-index: 0;
+    }
+  </style>
+</head>
+<body class="text-slate-800 antialiased">
+
+  <!-- Cheerful Pastel Background Blobs -->
+  <div class="bg-bubble w-64 h-64 bg-sky-300 -top-16 -left-16 blur-2xl"></div>
+  <div class="bg-bubble w-72 h-72 bg-pink-200 top-1/3 -right-20 blur-2xl"></div>
+  <div class="bg-bubble w-80 h-80 bg-amber-200 -bottom-24 left-1/4 blur-2xl"></div>
+
+  <!-- Main App Container -->
+  <div class="relative z-10 max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-5 min-h-screen flex flex-col">
+
+    <!-- Top Header Bar -->
+    <header class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-pink-400 via-amber-400 to-sky-400 p-1 shadow-md flex items-center justify-center animate-float">
+          <div class="w-full h-full rounded-xl bg-white/95 flex items-center justify-center">
+            <!-- Inline SVG Marble Icon -->
+            <svg viewBox="0 0 36 36" class="w-8 h-8">
+              <defs>
+                <radialGradient id="logoMarble" cx="35%" cy="30%" r="65%">
+                  <stop offset="0%" stop-color="#60A5FA" />
+                  <stop offset="60%" stop-color="#2563EB" />
+                  <stop offset="100%" stop-color="#1E3A8A" />
+                </radialGradient>
+              </defs>
+              <circle cx="18" cy="18" r="14" fill="url(#logoMarble)" />
+              <path d="M9 21 Q18 14 27 20" stroke="rgba(255,255,255,0.45)" stroke-width="2.5" fill="none" stroke-linecap="round" />
+              <ellipse cx="13" cy="12" rx="4.5" ry="2.8" fill="rgba(255,255,255,0.78)" transform="rotate(-30 13 12)" />
+            </svg>
+          </div>
+        </div>
+        <div>
+          <h1 class="text-xl sm:text-2xl font-bold text-slate-800 leading-tight tracking-tight">
+            Choose a Marble!
+          </h1>
+          <p class="text-xs font-bold text-sky-600">Family Elimination Marble Race</p>
+        </div>
+      </div>
+
+      <!-- Music, SFX & Leaderboard Buttons -->
+      <div class="flex items-center gap-2">
+        <button id="leaderboardHeaderBtn" type="button"
+          class="hidden toy-btn flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-amber-50 border-2 border-amber-200 shadow-sm text-sm font-bold text-amber-800 hover:bg-amber-100"
+          aria-label="Open Family Game Night Leaderboard">
+          <span class="text-lg leading-none">🏆</span>
+          <span class="hidden sm:inline">Leaderboard</span>
+          <span id="headerGamesCount" class="px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-900 text-xs font-extrabold">0</span>
+        </button>
+        <button id="musicToggleBtn" type="button"
+          class="toy-btn flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-white border-2 border-slate-200 shadow-sm text-sm font-bold text-slate-700 hover:bg-slate-50"
+          aria-label="Toggle Background Music">
+          <span id="musicIcon" class="text-lg leading-none">🎵</span>
+          <span id="musicLabel" class="hidden sm:inline">Music On</span>
+        </button>
+        <button id="soundToggleBtn" type="button"
+          class="toy-btn flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-white border-2 border-slate-200 shadow-sm text-sm font-bold text-slate-700 hover:bg-slate-50"
+          aria-label="Toggle Sound Effects">
+          <span id="soundIcon" class="text-lg leading-none">🔊</span>
+          <span id="soundLabel" class="hidden sm:inline">SFX On</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- =================================================================== -->
+    <!-- SCREEN 1: LOBBY / PLAYER SETUP                                      -->
+    <!-- =================================================================== -->
+    <main id="lobbyScreen" class="flex-1 flex flex-col justify-center">
+      <div class="toy-card rounded-3xl p-5 sm:p-7 max-w-4xl w-full mx-auto">
+
+        <!-- Intro & Player Count Selector -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b-2 border-slate-100">
+          <div>
+            <h2 class="text-xl sm:text-2xl font-bold text-slate-800">Pick Your Marbles!</h2>
+            <p class="text-sm text-slate-500 font-semibold mt-0.5">
+              Real rolling marble physics on 3 giant family tracks with Teleporters, Speed Pads &amp; Slow-Mo Photo Finishes!
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2 bg-sky-50 p-2 rounded-2xl border-2 border-sky-100 self-start md:self-auto">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-sky-700 px-2">Players:</span>
+            <div id="playerCountBtns" class="flex gap-1.5"></div>
+          </div>
+        </div>
+
+        <!-- Track Selector (Choose from 3 Tracks) -->
+        <div class="mt-4 pt-1">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Choose Your Track</span>
+            <span class="text-xs font-bold text-sky-600">Same family physics, totally different layouts!</span>
+          </div>
+          <div id="trackPickerGrid" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5"></div>
+        </div>
+
+        <!-- Player Cards Grid -->
+        <div id="playerSetupGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4 my-5"></div>
+
+        <!-- Inline Error / Status Box -->
+        <div id="lobbyError" class="hidden mb-4 px-4 py-2.5 rounded-2xl bg-rose-50 border-2 border-rose-200 text-rose-700 text-sm font-bold text-center"></div>
+
+        <!-- Start Tournament Button -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+          <div class="flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-500">
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-600">★</span>
+            <span>Random drops &amp; freshly shuffled courses every round!</span>
+          </div>
+          <button id="startTournamentBtn" type="button"
+            class="toy-btn btn-green w-full sm:w-auto px-9 py-3.5 rounded-2xl text-white text-xl font-bold tracking-wide flex items-center justify-center gap-2">
+            <span>Start Tournament</span>
+            <span class="text-2xl leading-none">🏁</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Family Game Night Session Leaderboard Card (Appears after 1st Tournament) -->
+      <div id="lobbyLeaderboardCard" class="hidden toy-card rounded-3xl p-5 sm:p-6 max-w-4xl w-full mx-auto mt-4">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3.5">
+          <div class="flex items-center gap-2.5">
+            <span class="w-9 h-9 rounded-2xl bg-amber-100 border-2 border-amber-200 flex items-center justify-center text-xl">🏆</span>
+            <div>
+              <h3 class="font-display font-bold text-lg sm:text-xl text-slate-800 leading-tight">Family Game Night Leaderboard</h3>
+              <p id="lobbyLeaderboardSubtitle" class="text-xs font-bold text-slate-400">Total tournament wins this sitting</p>
+            </div>
+          </div>
+          <button id="lobbyResetLeaderboardBtn" type="button"
+            class="toy-btn px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-xs font-extrabold">
+            Reset Scores
+          </button>
+        </div>
+        <div id="lobbyLeaderboardList" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+      </div>
+    </main>
+
+    <!-- =================================================================== -->
+    <!-- SCREEN 2: LIVE RACE ARENA (VERTICAL REEL + MINIMAP + LIVE HUD)      -->
+    <!-- =================================================================== -->
+    <section id="raceScreen" class="hidden flex-1 flex flex-col lg:flex-row items-center lg:items-stretch justify-center gap-4 lg:gap-6">
+
+      <!-- Left / Center: Tall Vertical Reel Viewport + Docked Vertical Minimap -->
+      <div class="w-full max-w-[540px] flex flex-col items-center">
+        <!-- Compact Mobile Status Bar -->
+        <div class="lg:hidden w-full flex items-center justify-between mb-2 px-1">
+          <span id="mobileRoundBadge" class="px-3 py-1 rounded-full bg-blue-600 text-white font-display font-bold text-sm shadow-sm">
+            Round 1
+          </span>
+          <div class="flex items-center gap-2">
+            <button id="mobileFastBtn" type="button"
+              class="hidden toy-btn px-3 py-1 rounded-xl bg-amber-400 text-amber-950 font-bold text-xs shadow-sm">
+              ⚡ Show Results
+            </button>
+            <button id="mobileBackBtn" type="button"
+              class="toy-btn px-3 py-1 rounded-xl bg-white border border-slate-200 text-slate-600 font-bold text-xs">
+              ← Lobby
+            </button>
+          </div>
+        </div>
+
+        <!-- Camera Mode Toggle Bar -->
+        <div class="w-full flex items-center justify-between gap-2 mb-2.5 px-1">
+          <span class="text-xs font-extrabold uppercase tracking-wider text-slate-500 hidden sm:inline">Camera:</span>
+          <div id="cameraModeBtns" class="flex-1 sm:flex-none flex items-center gap-1.5 bg-white/90 p-1 rounded-2xl border-2 border-sky-100 shadow-sm">
+            <button type="button" data-cam="leader"
+              class="cam-btn toy-btn flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-xs font-bold transition-colors bg-blue-600 text-white shadow-sm">
+              🥇 Follow Leader
+            </button>
+            <button type="button" data-cam="pack"
+              class="cam-btn toy-btn flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-xs font-bold transition-colors text-slate-600 hover:bg-sky-50">
+              👥 Follow Pack
+            </button>
+            <button type="button" data-cam="last"
+              class="cam-btn toy-btn flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-xs font-bold transition-colors text-slate-600 hover:bg-sky-50">
+              🐢 Last Place
+            </button>
+          </div>
+        </div>
+
+        <!-- Reel Canvas + Vertical Track Progress Minimap Row -->
+        <div class="w-full flex items-stretch gap-2.5 sm:gap-3">
+          <!-- Vertical Reel Canvas Container -->
+          <div id="reelContainer" class="reel-frame flex-1 aspect-[9/14] max-h-[75vh] lg:max-h-[80vh]">
+            <canvas id="raceCanvas"></canvas>
+
+            <!-- Countdown Overlay -->
+            <div id="countdownOverlay" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-sky-900/15 backdrop-blur-[1px] pointer-events-none z-20">
+              <div id="countdownText" class="font-display font-bold text-7xl sm:text-8xl text-white drop-shadow-[0_6px_0_rgba(37,99,235,0.85)]">
+                3
+              </div>
+              <div id="countdownSub" class="mt-2 px-4 py-1 rounded-full bg-white/95 text-blue-700 font-display font-bold text-base shadow-md">
+                Get Ready!
+              </div>
+            </div>
+
+            <!-- Top-left Track Stage Pill -->
+            <div id="stagePill" class="absolute top-3 left-3 z-10 px-3 py-1 rounded-full bg-white/95 border border-sky-100 shadow-sm text-xs font-extrabold text-sky-700 pointer-events-none">
+              Top Scramble Funnel
+            </div>
+
+            <!-- Top-right Progress Bar -->
+            <div class="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/95 border border-sky-100 shadow-sm pointer-events-none">
+              <span class="text-[11px] font-extrabold text-slate-500">FINISH</span>
+              <div class="w-16 h-2.5 bg-slate-200 rounded-full overflow-hidden">
+                <div id="raceProgressBar" class="h-full bg-gradient-to-r from-sky-400 to-emerald-400 rounded-full transition-all duration-100" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <!-- Leader Finish Toast -->
+            <div id="finishToast" class="hidden absolute bottom-5 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-2xl bg-white/95 border-2 border-amber-300 shadow-lg text-sm font-display font-bold text-slate-800 whitespace-nowrap">
+            </div>
+
+            <!-- Slow-Motion Photo Finish Golden Screen-Edge Glow -->
+            <div id="slowMoGlow" class="slowmo-glow pointer-events-none absolute inset-0 z-10 rounded-[22px] opacity-0"></div>
+
+            <!-- Slow-Motion Photo Finish Pulsing Badge -->
+            <div id="slowMoBadge" class="hidden absolute top-12 left-1/2 -translate-x-1/2 z-20 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 border-2 border-white shadow-lg text-amber-950 font-display font-bold text-xs sm:text-sm tracking-wide whitespace-nowrap animate-slowmo pointer-events-none">
+              ⚡ SLOW-MO PHOTO FINISH! ⚡
+            </div>
+          </div>
+
+          <!-- Docked Vertical Track Progress Minimap -->
+          <div class="toy-card w-12 sm:w-14 rounded-2xl py-2.5 px-1.5 flex flex-col items-center justify-between shrink-0 max-h-[75vh] lg:max-h-[80vh]"
+               aria-label="Track Progress Minimap">
+            <div class="text-center leading-tight">
+              <div class="text-[9px] font-extrabold uppercase text-sky-600">START</div>
+              <div id="minimapPct" class="font-display font-bold text-xs text-slate-700">0%</div>
+            </div>
+
+            <!-- Vertical Track Line with Live Marble Dots -->
+            <div id="minimapTrack" class="relative flex-1 w-3 my-2 rounded-full bg-gradient-to-b from-sky-200 via-amber-200 to-emerald-200 border border-white shadow-inner">
+              <!-- Halfway Comeback Marker -->
+              <div class="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 w-5 h-1 rounded-full bg-amber-400/90" title="Halfway Comeback"></div>
+              <!-- Dynamic Portal Markers Container -->
+              <div id="minimapPortals" class="absolute inset-0 pointer-events-none"></div>
+              <!-- Dynamic Marble Dots Container -->
+              <div id="minimapDots" class="absolute inset-0"></div>
+            </div>
+
+            <div class="text-center leading-tight">
+              <div class="text-sm leading-none">🏁</div>
+              <div id="minimapDist" class="text-[9px] font-extrabold text-slate-400 mt-0.5">800m</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side: Live HUD & Standings Panel -->
+      <aside class="w-full max-w-[460px] lg:max-w-xs flex flex-col gap-3.5">
+
+        <!-- Round Info Card -->
+        <div class="toy-card rounded-3xl p-4 sm:p-5">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <span id="roundBadge" class="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-display font-bold text-sm">
+                Round 1 of 4
+              </span>
+              <h3 id="trackNameDisplay" class="font-display font-bold text-lg text-slate-800 mt-1">
+                Mega Sunny Toybox Run
+              </h3>
+            </div>
+            <div class="text-right">
+              <div class="text-xs font-extrabold uppercase text-slate-400">Racing</div>
+              <div id="remainingCount" class="font-display font-bold text-2xl text-emerald-600">5</div>
+            </div>
+          </div>
+
+          <!-- Live Standings List -->
+          <div class="space-y-2" id="liveStandingsList"></div>
+
+          <!-- Optional Finish Early button when only last marble is left rolling -->
+          <button id="finishEarlyBtn" type="button"
+            class="hidden mt-3.5 w-full toy-btn btn-amber py-2.5 px-4 rounded-2xl text-amber-950 font-bold text-sm flex items-center justify-center gap-2">
+            <span>⚡ Last Place Decided — Show Results</span>
+          </button>
+        </div>
+
+        <!-- Eliminated So Far Card -->
+        <div id="eliminatedCard" class="hidden toy-card rounded-3xl p-4">
+          <div class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-2">
+            Cheering from the Sidelines
+          </div>
+          <div id="eliminatedList" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <!-- Lobby Return Button -->
+        <div class="hidden lg:flex flex-col gap-2 mt-auto">
+          <button id="backToLobbyBtn" type="button"
+            class="toy-btn w-full py-2.5 px-4 rounded-2xl bg-white border-2 border-slate-200 text-slate-600 font-bold text-sm hover:bg-slate-50">
+            ← Change Players / Lobby
+          </button>
+        </div>
+      </aside>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- MODAL: ROUND RESULTS SCOREBOARD                                     -->
+    <!-- =================================================================== -->
+    <div id="roundResultsModal" class="hidden fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+      <div class="toy-card rounded-3xl p-5 sm:p-7 max-w-md w-full animate-pop max-h-[90vh] overflow-y-auto">
+        <div class="text-center mb-4">
+          <span id="resultsRoundPill" class="inline-block px-3.5 py-1 rounded-full bg-sky-100 text-sky-700 font-display font-bold text-sm mb-1.5">
+            Round 1 Complete!
+          </span>
+          <h2 class="text-2xl sm:text-3xl font-bold text-slate-800">Round Results</h2>
+        </div>
+
+        <!-- Results Order List with Times & SAFE / ELIMINATED Badges -->
+        <div id="roundResultsList" class="space-y-2.5 mb-5"></div>
+
+        <!-- Friendly Elimination Callout -->
+        <div class="mb-5 p-3.5 rounded-2xl bg-rose-50 border-2 border-rose-200 text-center">
+          <div class="text-xs font-extrabold uppercase tracking-wider text-rose-500">Eliminated This Round</div>
+          <div id="eliminatedPlayerText" class="font-display font-bold text-lg text-rose-700 mt-0.5"></div>
+          <div class="text-xs font-bold text-rose-500 mt-0.5">Awesome race! Cheer on the remaining marbles! 🎉</div>
+        </div>
+
+        <button id="nextRoundBtn" type="button"
+          class="toy-btn btn-primary w-full py-3.5 rounded-2xl text-white font-bold text-xl tracking-wide">
+          Next Round 🚀
+        </button>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MODAL: GRAND CHAMPION FINALE                                        -->
+    <!-- =================================================================== -->
+    <div id="championModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm">
+      <div class="toy-card rounded-3xl p-6 sm:p-8 max-w-md w-full text-center animate-pop max-h-[92vh] overflow-y-auto relative">
+        <!-- SVG Trophy -->
+        <div class="flex justify-center mb-2">
+          <div class="w-20 h-20 rounded-full bg-amber-100 border-4 border-amber-300 flex items-center justify-center shadow-inner animate-float">
+            <svg viewBox="0 0 64 64" class="w-12 h-12">
+              <path d="M18 12h28v14c0 8.8-6.3 16-14 16s-14-7.2-14-16V12z" fill="#FBBF24" stroke="#D97706" stroke-width="3"/>
+              <path d="M18 16H10c0 8 4 12 8 12" fill="none" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+              <path d="M46 16h8c0 8-4 12-8 12" fill="none" stroke="#D97706" stroke-width="3" stroke-linecap="round"/>
+              <rect x="28" y="42" width="8" height="8" fill="#F59E0B" stroke="#D97706" stroke-width="2.5"/>
+              <rect x="20" y="50" width="24" height="6" rx="3" fill="#D97706"/>
+              <circle cx="32" cy="24" r="5" fill="#FEF3C7"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="text-xs font-extrabold uppercase tracking-widest text-amber-600">Grand Champion</div>
+        <div class="flex items-center justify-center gap-3 my-2">
+          <div id="championMarble" class="marble-orb w-12 h-12 flex items-center justify-center font-display font-bold text-xl"></div>
+          <h2 id="championName" class="text-3xl sm:text-4xl font-bold text-slate-800">Winner!</h2>
+        </div>
+        <p class="text-sm font-bold text-slate-500 mb-5">Rolled past every obstacle to claim the family trophy! 🏆</p>
+
+        <!-- Final Tournament Standings -->
+        <div class="text-left mb-5">
+          <div class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-2 text-center">
+            Final Tournament Standings
+          </div>
+          <div id="finalStandingsList" class="space-y-2"></div>
+        </div>
+
+        <!-- Family Game Night Overall Leaderboard -->
+        <div id="championLeaderboardWrap" class="text-left mb-5 p-3.5 rounded-2xl bg-amber-50/75 border-2 border-amber-200/80">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-amber-700">🏆 Game Night Leaderboard</span>
+            <span id="championGamesPill" class="px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900 text-[11px] font-extrabold">Game #1</span>
+          </div>
+          <div id="championLeaderboardList" class="space-y-1.5"></div>
+        </div>
+
+        <!-- Replay Buttons -->
+        <div class="flex flex-col sm:flex-row gap-2.5">
+          <button id="playAgainSameBtn" type="button"
+            class="toy-btn btn-green flex-1 py-3 px-4 rounded-2xl text-white font-bold text-base">
+            Play Again! 🔁
+          </button>
+          <button id="changePlayersBtn" type="button"
+            class="toy-btn flex-1 py-3 px-4 rounded-2xl bg-slate-100 border-2 border-slate-200 text-slate-700 font-bold text-base hover:bg-slate-200">
+            Back to Lobby
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- =================================================================== -->
+    <!-- MODAL: FAMILY GAME NIGHT LEADERBOARD                                -->
+    <!-- =================================================================== -->
+    <div id="leaderboardModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/45 backdrop-blur-sm">
+      <div class="toy-card rounded-3xl p-5 sm:p-7 max-w-md w-full animate-pop max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2.5">
+            <span class="w-10 h-10 rounded-2xl bg-amber-100 border-2 border-amber-200 flex items-center justify-center text-2xl">🏆</span>
+            <div>
+              <h2 class="font-display font-bold text-xl sm:text-2xl text-slate-800 leading-tight">Game Night Tally</h2>
+              <p id="modalLeaderboardSubtitle" class="text-xs font-bold text-slate-400">0 tournaments played</p>
+            </div>
+          </div>
+          <button id="closeLeaderboardModalBtn" type="button"
+            class="toy-btn w-9 h-9 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 font-extrabold text-base hover:bg-slate-200"
+            aria-label="Close Leaderboard">
+            ✕
+          </button>
+        </div>
+
+        <div id="modalLeaderboardList" class="space-y-2 mb-5"></div>
+
+        <div class="flex items-center justify-between gap-2 pt-3 border-t-2 border-slate-100">
+          <button id="modalResetLeaderboardBtn" type="button"
+            class="toy-btn px-3.5 py-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-xs font-extrabold">
+            Reset Scores
+          </button>
+          <button id="closeLeaderboardDoneBtn" type="button"
+            class="toy-btn btn-primary px-6 py-2 rounded-xl text-white font-bold text-sm">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MATTER.JS GAME ENGINE & APPLICATION SCRIPT                            -->
+  <!-- ===================================================================== -->
+  <script>
+    (() => {
+      'use strict';
+
+      /* ===================================================================
+         1. CONSTANTS, COLOR PALETTE, FLAIRS & 3-TRACK CATALOG
+      =================================================================== */
+      const WORLD_W = 640;
+      const RAIL_W = 20;
+      const INNER_W = WORLD_W - RAIL_W * 2; // 600px
+      const INNER_L = RAIL_W;               // 20px
+      const INNER_R = WORLD_W - RAIL_W;     // 620px
+      const CENTER_X = WORLD_W / 2;         // 320px
+      const MARBLE_R = 18;
+      const FIXED_DT_MS = 1000 / 120;       // 120Hz rock-solid Matter.js sub-stepping
+
+      const MARBLE_COLORS = [
+        { id: 'red',    name: 'Cherry Red',    hex: '#EF4444', light: '#FCA5A5', dark: '#B91C1C', text: '#FFFFFF' },
+        { id: 'blue',   name: 'Ocean Blue',    hex: '#2563EB', light: '#93C5FD', dark: '#1E3A8A', text: '#FFFFFF' },
+        { id: 'yellow', name: 'Sunny Yellow',  hex: '#FACC15', light: '#FEF08A', dark: '#CA8A04', text: '#422006' },
+        { id: 'green',  name: 'Emerald Green', hex: '#22C55E', light: '#86EFAC', dark: '#15803D', text: '#FFFFFF' },
+        { id: 'purple', name: 'Grape Purple',  hex: '#9333EA', light: '#D8B4FE', dark: '#6B21A8', text: '#FFFFFF' },
+        { id: 'orange', name: 'Tangerine',     hex: '#F97316', light: '#FDBA74', dark: '#C2410C', text: '#FFFFFF' },
+        { id: 'pink',   name: 'Bubblegum',     hex: '#EC4899', light: '#F9A8D4', dark: '#BE185D', text: '#FFFFFF' },
+        { id: 'teal',   name: 'Aqua Splash',   hex: '#06B6D4', light: '#A5F3FC', dark: '#0E7490', text: '#FFFFFF' }
+      ];
+
+      const MARBLE_FLAIRS = [
+        { id: 'initial', label: 'First Letter', icon: 'Aa' },
+        { id: '⭐',      label: 'Star',         icon: '⭐' },
+        { id: '🦖',      label: 'Dinosaur',     icon: '🦖' },
+        { id: '🚀',      label: 'Rocket',       icon: '🚀' },
+        { id: '🦄',      label: 'Unicorn',      icon: '🦄' },
+        { id: '👑',      label: 'Crown',        icon: '👑' },
+        { id: '⚡',      label: 'Lightning',    icon: '⚡' },
+        { id: '⚽',      label: 'Soccer',       icon: '⚽' },
+        { id: '🐱',      label: 'Cat',          icon: '🐱' },
+        { id: '🐶',      label: 'Dog',          icon: '🐶' },
+        { id: '🦋',      label: 'Butterfly',    icon: '🦋' },
+        { id: '🍕',      label: 'Pizza',        icon: '🍕' }
+      ];
+
+      const TRACK_CATALOG = [
+        {
+          id: 'classic',
+          number: 'Track 1',
+          icon: '🎡',
+          name: 'Classic Toybox Mix',
+          desc: 'Plinko, windmills, bumpers, portals & turbo boosts.',
+          accent: 'from-sky-500 to-blue-600',
+          locked: false
+        },
+        {
+          id: 'splitlane',
+          number: 'Track 2',
+          icon: '🔀',
+          name: 'Split-Lane Speedway',
+          desc: 'Repeated Left vs. Right forks with comeback merge funnels!',
+          accent: 'from-orange-500 to-rose-500',
+          locked: false
+        },
+        {
+          id: 'giantslide',
+          number: 'Track 3',
+          icon: '🎢',
+          name: 'Giant Marble Slide',
+          desc: 'Sweeping wooden slides, cascade steps & cross-track warps!',
+          accent: 'from-emerald-500 to-teal-600',
+          locked: false
+        }
+      ];
+
+      const TRACK_TITLES = {
+        classic: ['Mega Sunny Toybox Run', 'Rainbow Plinko Drop', 'Toybox Bumper Bash', 'Spinning Carnival Run'],
+        splitlane: ['Split-Lane Speedway', 'Left vs. Right Express', 'Twin Fork Showdown', 'Turbo Split Grand Prix'],
+        giantslide: ['Giant Marble Slide', 'Wooden Tower Express', 'Cascade Slideway', 'Cross-Track Super Slide']
+      };
+
+      /* ===================================================================
+         2. UTILITY HELPERS
+      =================================================================== */
+      function clamp(val, min, max) {
+        return Math.max(min, Math.min(max, val));
+      }
+
+      function randRange(min, max) {
+        return min + Math.random() * (max - min);
+      }
+
+      function shuffle(arr) {
+        const copy = arr.slice();
+        for (let i = copy.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [copy[i], copy[j]] = [copy[j], copy[i]];
+        }
+        return copy;
+      }
+
+      function escapeHtml(str) {
+        return String(str || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function formatTime(sec) {
+        return `${Math.max(0, sec).toFixed(2)}s`;
+      }
+
+      function getPlayerFlair(player) {
+        const flair = player && player.flair ? player.flair : 'initial';
+        if (flair === 'initial') {
+          const name = (player && player.name ? player.name.trim() : '') || '?';
+          return { text: name.charAt(0).toUpperCase(), isEmoji: false };
+        }
+        return { text: flair, isEmoji: true };
+      }
+
+      /* ===================================================================
+         3. GUARDED WEB AUDIO SFX & 4-THEME SOUNDTRACK ENGINE
+      =================================================================== */
+      const SharedAudio = (() => {
+        let audioCtx = null;
+        let noiseBuffer = null;
+
+        function ensureCtx() {
+          try {
+            if (!audioCtx) {
+              const Ctx = window.AudioContext || window.webkitAudioContext;
+              if (!Ctx) return null;
+              audioCtx = new Ctx();
+            }
+            if (audioCtx.state === 'suspended') {
+              audioCtx.resume().catch(() => {});
+            }
+            return audioCtx;
+          } catch {
+            return null;
+          }
+        }
+
+        function getNoiseBuffer() {
+          const ctx = ensureCtx();
+          if (!ctx) return null;
+          if (!noiseBuffer) {
+            const len = Math.floor(ctx.sampleRate * 0.15);
+            const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < len; i++) {
+              data[i] = Math.random() * 2 - 1;
+            }
+            noiseBuffer = buf;
+          }
+          return noiseBuffer;
+        }
+
+        return { ensureCtx, getNoiseBuffer };
+      })();
+
+      const SoundFX = (() => {
+        let muted = false;
+        let lastPlinkTs = 0;
+
+        function getCtx() {
+          if (muted) return null;
+          return SharedAudio.ensureCtx();
+        }
+
+        function tone(freq, duration, type = 'sine', gainVal = 0.08, endFreq = null, delay = 0) {
+          const ctx = getCtx();
+          if (!ctx) return;
+          try {
+            const now = ctx.currentTime + delay;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, now);
+            if (endFreq !== null) {
+              osc.frequency.exponentialRampToValueAtTime(Math.max(40, endFreq), now + duration);
+            }
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.exponentialRampToValueAtTime(gainVal, now + 0.012);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + duration + 0.02);
+          } catch {
+            // Ignore autoplay / audio context restrictions gracefully
+          }
+        }
+
+        return {
+          toggleMute() {
+            muted = !muted;
+            return muted;
+          },
+          click() {
+            tone(520, 0.06, 'triangle', 0.06, 680);
+          },
+          plink() {
+            const now = performance.now();
+            if (now - lastPlinkTs < 45) return;
+            lastPlinkTs = now;
+            const notes = [523.25, 587.33, 659.25, 783.99, 880, 1046.5];
+            const n = notes[Math.floor(Math.random() * notes.length)];
+            tone(n, 0.09, 'sine', 0.045, n * 1.04);
+          },
+          bumper() {
+            tone(340, 0.14, 'triangle', 0.09, 640);
+          },
+          portal() {
+            tone(420, 0.22, 'sine', 0.08, 1180);
+            tone(840, 0.18, 'triangle', 0.05, 520, 0.06);
+          },
+          boost() {
+            tone(480, 0.18, 'sawtooth', 0.04, 1020);
+          },
+          slowMo() {
+            tone(660, 0.38, 'sine', 0.07, 220);
+          },
+          countdown(isGo) {
+            if (isGo) {
+              tone(783.99, 0.16, 'triangle', 0.1, 1046.5);
+              tone(1046.5, 0.26, 'sine', 0.09, 1046.5, 0.07);
+            } else {
+              tone(440, 0.11, 'triangle', 0.075);
+            }
+          },
+          finishMarble(rank) {
+            const base = rank === 1 ? 659.25 : 523.25;
+            tone(base, 0.14, 'triangle', 0.08);
+            tone(base * 1.25, 0.2, 'sine', 0.08, null, 0.08);
+          },
+          roundOver() {
+            [523.25, 659.25, 783.99].forEach((f, i) => tone(f, 0.18, 'triangle', 0.08, null, i * 0.09));
+          },
+          champion() {
+            [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(f, 0.28, 'triangle', 0.1, null, i * 0.11));
+          }
+        };
+      })();
+
+      /* ===================================================================
+         3B. 4-THEME SYNTHESIZED LOOPING SOUNDTRACK ENGINE
+      =================================================================== */
+      const MusicEngine = (() => {
+        // Equal-temperament note frequency helper (e.g. midi 60 = C4)
+        function midiToHz(midi) {
+          return 440 * Math.pow(2, (midi - 69) / 12);
+        }
+
+        // 4 cheerful, distinct 32-step (2-bar 16th-note or 4-bar 8th-note) looping themes
+        const THEMES = {
+          // Main Menu / Lobby: Cozy Toybox Groove (warm marimba & bells, C major)
+          lobby: {
+            bpm: 104,
+            steps: 32,
+            leadWave: 'sine',
+            leadGain: 0.13,
+            leadDecay: 0.24,
+            bassWave: 'triangle',
+            bassGain: 0.14,
+            chordGain: 0.055,
+            lead: [
+              72, 0, 76, 0, 79, 0, 76, 74,
+              72, 0, 69, 0, 72, 0, 0,  0,
+              74, 0, 77, 0, 81, 0, 79, 77,
+              76, 0, 74, 0, 72, 0, 0,  0
+            ],
+            bass: [
+              48, 0, 0, 0, 55, 0, 0, 0,
+              45, 0, 0, 0, 52, 0, 0, 0,
+              41, 0, 0, 0, 48, 0, 0, 0,
+              43, 0, 0, 0, 50, 0, 55, 0
+            ],
+            chords: {
+              0:  [60, 64, 67],
+              8:  [57, 60, 64],
+              16: [53, 57, 60],
+              24: [55, 59, 62]
+            },
+            drums: [
+              'k', 0, 'h', 0, 's', 0, 'h', 0,
+              'k', 0, 'h', 0, 's', 0, 'h', 0,
+              'k', 0, 'h', 0, 's', 0, 'h', 0,
+              'k', 0, 'h', 'k', 's', 0, 'h', 0
+            ]
+          },
+
+          // Track 1 (Classic Toybox Mix): Sunny Carnival Bounce (bright xylophone, F major)
+          classic: {
+            bpm: 128,
+            steps: 32,
+            leadWave: 'triangle',
+            leadGain: 0.15,
+            leadDecay: 0.17,
+            bassWave: 'triangle',
+            bassGain: 0.15,
+            chordGain: 0.05,
+            lead: [
+              77, 0, 81, 79, 77, 0, 74, 0,
+              72, 74, 77, 0, 81, 0, 79, 0,
+              79, 0, 84, 81, 79, 0, 76, 0,
+              77, 0, 81, 84, 89, 0, 0,  0
+            ],
+            bass: [
+              53, 0, 60, 0, 53, 0, 60, 0,
+              50, 0, 57, 0, 50, 0, 57, 0,
+              48, 0, 55, 0, 48, 0, 55, 0,
+              53, 0, 55, 0, 53, 0, 0,  0
+            ],
+            chords: {
+              0:  [65, 69, 72],
+              8:  [62, 65, 69],
+              16: [60, 64, 67],
+              24: [65, 69, 72]
+            },
+            drums: [
+              'k', 0, 'h', 0, 's', 0, 'h', 0,
+              'k', 0, 'h', 'k', 's', 0, 'h', 0,
+              'k', 0, 'h', 0, 's', 0, 'h', 0,
+              'k', 'k', 'h', 0, 's', 0, 'h', 'h'
+            ]
+          },
+
+          // Track 2 (Split-Lane Speedway): Turbo Kart Dash (energetic arcade synth, G major)
+          splitlane: {
+            bpm: 146,
+            steps: 32,
+            leadWave: 'sawtooth',
+            leadGain: 0.085,
+            leadDecay: 0.14,
+            bassWave: 'square',
+            bassGain: 0.065,
+            chordGain: 0.045,
+            lead: [
+              79, 79, 0, 83, 86, 0, 83, 81,
+              79, 0, 74, 76, 79, 0, 81, 0,
+              83, 83, 0, 86, 91, 0, 86, 83,
+              81, 83, 81, 78, 79, 0, 0,  0
+            ],
+            bass: [
+              43, 43, 55, 0, 43, 43, 55, 0,
+              48, 48, 60, 0, 48, 48, 60, 0,
+              45, 45, 57, 0, 50, 50, 62, 0,
+              43, 43, 50, 50, 43, 0, 55, 0
+            ],
+            chords: {
+              0:  [67, 71, 74],
+              8:  [60, 64, 67],
+              16: [62, 66, 69],
+              24: [67, 71, 74]
+            },
+            drums: [
+              'k', 'h', 'h', 'k', 's', 'h', 'k', 'h',
+              'k', 'h', 'h', 'k', 's', 'h', 'h', 'h',
+              'k', 'h', 'h', 'k', 's', 'h', 'k', 'h',
+              'k', 'h', 's', 'k', 's', 's', 'h', 0
+            ]
+          },
+
+          // Track 3 (Giant Marble Slide): Rolling Cascade Rhythm (flowing wooden arpeggios, D major)
+          giantslide: {
+            bpm: 122,
+            steps: 32,
+            leadWave: 'sine',
+            leadGain: 0.14,
+            leadDecay: 0.22,
+            bassWave: 'triangle',
+            bassGain: 0.14,
+            chordGain: 0.055,
+            lead: [
+              74, 78, 81, 86, 81, 78, 74, 78,
+              76, 79, 83, 88, 83, 79, 76, 0,
+              78, 81, 86, 90, 86, 81, 78, 81,
+              81, 79, 78, 76, 74, 0,  86, 0
+            ],
+            bass: [
+              50, 0, 0, 57, 50, 0, 57, 0,
+              47, 0, 0, 55, 47, 0, 55, 0,
+              45, 0, 0, 52, 45, 0, 52, 0,
+              50, 0, 57, 0, 50, 0, 0,  0
+            ],
+            chords: {
+              0:  [62, 66, 69],
+              8:  [59, 62, 67],
+              16: [57, 61, 64],
+              24: [62, 66, 69]
+            },
+            drums: [
+              'k', 0, 'h', 'h', 's', 0, 'h', 0,
+              'k', 0, 'h', 'h', 's', 0, 'h', 0,
+              'k', 0, 'h', 'h', 's', 0, 'h', 0,
+              'k', 0, 'h', 0, 's', 'h', 'h', 0
+            ]
+          }
+        };
+
+        let enabled = true;
+        let unlocked = false;
+        let currentThemeId = 'lobby';
+        let ducked = false;
+        let slowMo = false;
+        let masterGain = null;
+        let stepIndex = 0;
+        let nextNoteTime = 0;
+        let schedulerTimer = null;
+
+        function ensureMasterGain(ctx) {
+          if (!masterGain && ctx) {
+            masterGain = ctx.createGain();
+            masterGain.gain.value = 0.0001;
+            masterGain.connect(ctx.destination);
+          }
+          return masterGain;
+        }
+
+        function updateMasterVolume() {
+          const ctx = SharedAudio.ensureCtx();
+          if (!ctx || !masterGain) return;
+          const target = !enabled ? 0.0001 : (ducked ? 0.055 : 0.19);
+          try {
+            masterGain.gain.cancelScheduledValues(ctx.currentTime);
+            masterGain.gain.setTargetAtTime(target, ctx.currentTime, 0.08);
+          } catch {
+            // Ignore audio scheduling glitches
+          }
+        }
+
+        function playSynthNote(ctx, dest, freq, startTime, duration, wave, peakGain) {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = wave;
+          osc.frequency.setValueAtTime(freq, startTime);
+
+          // Gentle low-pass filter on bright waveforms so kids' ears stay happy
+          let outputNode = osc;
+          if (wave === 'sawtooth' || wave === 'square') {
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1750, startTime);
+            osc.connect(filter);
+            outputNode = filter;
+          }
+
+          gain.gain.setValueAtTime(0.0001, startTime);
+          gain.gain.linearRampToValueAtTime(peakGain, startTime + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+          outputNode.connect(gain);
+          gain.connect(dest);
+          osc.start(startTime);
+          osc.stop(startTime + duration + 0.03);
+        }
+
+        function playDrum(ctx, dest, type, startTime) {
+          if (type === 'k') {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(130, startTime);
+            osc.frequency.exponentialRampToValueAtTime(42, startTime + 0.09);
+            gain.gain.setValueAtTime(0.22, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.11);
+            osc.connect(gain);
+            gain.connect(dest);
+            osc.start(startTime);
+            osc.stop(startTime + 0.12);
+            return;
+          }
+
+          const buf = SharedAudio.getNoiseBuffer();
+          if (!buf) return;
+          const src = ctx.createBufferSource();
+          src.buffer = buf;
+
+          const filter = ctx.createBiquadFilter();
+          const gain = ctx.createGain();
+
+          if (type === 'h') {
+            filter.type = 'highpass';
+            filter.frequency.setValueAtTime(6500, startTime);
+            gain.gain.setValueAtTime(0.055, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.04);
+          } else {
+            // Soft snare / woodblock snap
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(1900, startTime);
+            gain.gain.setValueAtTime(0.11, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.085);
+          }
+
+          src.connect(filter);
+          filter.connect(gain);
+          gain.connect(dest);
+          src.start(startTime);
+          src.stop(startTime + 0.1);
+        }
+
+        function scheduleStep(theme, step, time) {
+          const ctx = SharedAudio.ensureCtx();
+          if (!ctx || !enabled) return;
+          const dest = ensureMasterGain(ctx);
+          if (!dest) return;
+
+          // Subtle pitch drop during slow-mo photo finish for dramatic reel feel
+          const pitchShift = slowMo ? -2 : 0;
+
+          const leadMidi = theme.lead[step];
+          if (leadMidi) {
+            playSynthNote(ctx, dest, midiToHz(leadMidi + pitchShift), time, theme.leadDecay, theme.leadWave, theme.leadGain);
+          }
+
+          const bassMidi = theme.bass[step];
+          if (bassMidi) {
+            playSynthNote(ctx, dest, midiToHz(bassMidi + pitchShift), time, 0.22, theme.bassWave, theme.bassGain);
+          }
+
+          const chord = theme.chords[step];
+          if (chord) {
+            chord.forEach(m => {
+              playSynthNote(ctx, dest, midiToHz(m + pitchShift), time, 0.55, 'sine', theme.chordGain);
+            });
+          }
+
+          const drum = theme.drums[step];
+          if (drum) {
+            playDrum(ctx, dest, drum, time);
+          }
+        }
+
+        function tickScheduler() {
+          if (!enabled || !unlocked) return;
+          const ctx = SharedAudio.ensureCtx();
+          if (!ctx || ctx.state !== 'running') return;
+          const theme = THEMES[currentThemeId] || THEMES.lobby;
+
+          // Look ahead 120ms for rock-solid musical timing
+          const effectiveBpm = slowMo ? theme.bpm * 0.72 : theme.bpm;
+          const stepDur = (60 / effectiveBpm) / 2; // 8th-note steps
+
+          if (nextNoteTime < ctx.currentTime - 0.15) {
+            nextNoteTime = ctx.currentTime + 0.04;
+          }
+
+          while (nextNoteTime < ctx.currentTime + 0.12) {
+            scheduleStep(theme, stepIndex, nextNoteTime);
+            stepIndex = (stepIndex + 1) % theme.steps;
+            nextNoteTime += stepDur;
+          }
+        }
+
+        function startScheduler() {
+          if (schedulerTimer) return;
+          const ctx = SharedAudio.ensureCtx();
+          if (!ctx) return;
+          ensureMasterGain(ctx);
+          nextNoteTime = ctx.currentTime + 0.05;
+          updateMasterVolume();
+          schedulerTimer = setInterval(tickScheduler, 25);
+        }
+
+        return {
+          unlock() {
+            unlocked = true;
+            const ctx = SharedAudio.ensureCtx();
+            if (!ctx) return;
+            ensureMasterGain(ctx);
+            if (enabled) {
+              startScheduler();
+              updateMasterVolume();
+            }
+          },
+          setTheme(themeId) {
+            const nextId = THEMES[themeId] ? themeId : 'lobby';
+            if (currentThemeId === nextId) return;
+            currentThemeId = nextId;
+            stepIndex = 0;
+            const ctx = SharedAudio.ensureCtx();
+            if (ctx) {
+              nextNoteTime = ctx.currentTime + 0.06;
+            }
+            if (unlocked && enabled) {
+              startScheduler();
+              updateMasterVolume();
+            }
+          },
+          setDucked(isDucked) {
+            if (ducked === isDucked) return;
+            ducked = isDucked;
+            updateMasterVolume();
+          },
+          setSlowMo(isSlowMo) {
+            slowMo = isSlowMo;
+          },
+          toggle() {
+            enabled = !enabled;
+            unlocked = true;
+            if (enabled) {
+              startScheduler();
+            }
+            updateMasterVolume();
+            return enabled;
+          },
+          isEnabled() {
+            return enabled;
+          }
+        };
+      })();
+
+      /* ===================================================================
+         4. DOM REFERENCES & GAME STATE
+      =================================================================== */
+      const els = {
+        musicToggleBtn: document.getElementById('musicToggleBtn'),
+        musicIcon: document.getElementById('musicIcon'),
+        musicLabel: document.getElementById('musicLabel'),
+        soundToggleBtn: document.getElementById('soundToggleBtn'),
+        soundIcon: document.getElementById('soundIcon'),
+        soundLabel: document.getElementById('soundLabel'),
+        leaderboardHeaderBtn: document.getElementById('leaderboardHeaderBtn'),
+        headerGamesCount: document.getElementById('headerGamesCount'),
+
+        lobbyScreen: document.getElementById('lobbyScreen'),
+        playerCountBtns: document.getElementById('playerCountBtns'),
+        trackPickerGrid: document.getElementById('trackPickerGrid'),
+        playerSetupGrid: document.getElementById('playerSetupGrid'),
+        lobbyError: document.getElementById('lobbyError'),
+        startTournamentBtn: document.getElementById('startTournamentBtn'),
+
+        lobbyLeaderboardCard: document.getElementById('lobbyLeaderboardCard'),
+        lobbyLeaderboardSubtitle: document.getElementById('lobbyLeaderboardSubtitle'),
+        lobbyLeaderboardList: document.getElementById('lobbyLeaderboardList'),
+        lobbyResetLeaderboardBtn: document.getElementById('lobbyResetLeaderboardBtn'),
+
+        raceScreen: document.getElementById('raceScreen'),
+        reelContainer: document.getElementById('reelContainer'),
+        raceCanvas: document.getElementById('raceCanvas'),
+        countdownOverlay: document.getElementById('countdownOverlay'),
+        countdownText: document.getElementById('countdownText'),
+        countdownSub: document.getElementById('countdownSub'),
+        stagePill: document.getElementById('stagePill'),
+        raceProgressBar: document.getElementById('raceProgressBar'),
+        finishToast: document.getElementById('finishToast'),
+        slowMoGlow: document.getElementById('slowMoGlow'),
+        slowMoBadge: document.getElementById('slowMoBadge'),
+
+        minimapPct: document.getElementById('minimapPct'),
+        minimapPortals: document.getElementById('minimapPortals'),
+        minimapDots: document.getElementById('minimapDots'),
+        minimapDist: document.getElementById('minimapDist'),
+
+        mobileRoundBadge: document.getElementById('mobileRoundBadge'),
+        mobileFastBtn: document.getElementById('mobileFastBtn'),
+        mobileBackBtn: document.getElementById('mobileBackBtn'),
+        cameraModeBtns: document.getElementById('cameraModeBtns'),
+
+        roundBadge: document.getElementById('roundBadge'),
+        trackNameDisplay: document.getElementById('trackNameDisplay'),
+        remainingCount: document.getElementById('remainingCount'),
+        liveStandingsList: document.getElementById('liveStandingsList'),
+        finishEarlyBtn: document.getElementById('finishEarlyBtn'),
+        eliminatedCard: document.getElementById('eliminatedCard'),
+        eliminatedList: document.getElementById('eliminatedList'),
+        backToLobbyBtn: document.getElementById('backToLobbyBtn'),
+
+        roundResultsModal: document.getElementById('roundResultsModal'),
+        resultsRoundPill: document.getElementById('resultsRoundPill'),
+        roundResultsList: document.getElementById('roundResultsList'),
+        eliminatedPlayerText: document.getElementById('eliminatedPlayerText'),
+        nextRoundBtn: document.getElementById('nextRoundBtn'),
+
+        championModal: document.getElementById('championModal'),
+        championMarble: document.getElementById('championMarble'),
+        championName: document.getElementById('championName'),
+        finalStandingsList: document.getElementById('finalStandingsList'),
+        championLeaderboardWrap: document.getElementById('championLeaderboardWrap'),
+        championGamesPill: document.getElementById('championGamesPill'),
+        championLeaderboardList: document.getElementById('championLeaderboardList'),
+        playAgainSameBtn: document.getElementById('playAgainSameBtn'),
+        changePlayersBtn: document.getElementById('changePlayersBtn'),
+
+        leaderboardModal: document.getElementById('leaderboardModal'),
+        modalLeaderboardSubtitle: document.getElementById('modalLeaderboardSubtitle'),
+        modalLeaderboardList: document.getElementById('modalLeaderboardList'),
+        closeLeaderboardModalBtn: document.getElementById('closeLeaderboardModalBtn'),
+        closeLeaderboardDoneBtn: document.getElementById('closeLeaderboardDoneBtn'),
+        modalResetLeaderboardBtn: document.getElementById('modalResetLeaderboardBtn')
+      };
+
+      const ctx = els.raceCanvas.getContext('2d');
+
+      const state = {
+        phase: 'lobby', // lobby | countdown | racing | roundResults | champion
+        playerCount: 5,
+        trackId: 'classic', // classic | splitlane | giantslide
+        lobbyPlayers: [
+          { name: 'Player 1', colorId: 'red',    flair: '⭐' },
+          { name: 'Player 2', colorId: 'blue',   flair: '🚀' },
+          { name: 'Player 3', colorId: 'yellow', flair: '🦖' },
+          { name: 'Player 4', colorId: 'green',  flair: '🦄' },
+          { name: 'Player 5', colorId: 'purple', flair: '👑' }
+        ],
+
+        // Active Tournament State
+        allPlayers: [],
+        activePlayers: [],
+        eliminatedHistory: [],
+        round: 1,
+        totalRounds: 4,
+
+        // Physics & Track Entities
+        engine: null,
+        startGateBody: null,
+        marbles: [],
+        ramps: [],
+        pegs: [],
+        bumpers: [],
+        diamonds: [],
+        spinners: [],
+        portals: [],
+        boostPads: [],
+        stageZones: [],
+        laneLabels: [],
+        particles: [],
+        confetti: [],
+
+        finishY: 7800,
+        worldHeight: 8200,
+        finishedCount: 0,
+        raceElapsed: 0,
+        roundResolved: false,
+        finishEarlyReady: false,
+
+        // Camera & Slow-Motion
+        cameraMode: 'leader', // leader | pack | last
+        cameraY: 0,
+        cameraZoom: 1,
+        targetZoom: 1,
+        timeScale: 1,
+        targetTimeScale: 1,
+        slowMoActive: false,
+        slowMoTriggeredForLead: false,
+        slowMoTriggeredForElim: false,
+
+        // Timers & Loop
+        rafId: null,
+        lastFrameTs: 0,
+        physicsAccumMs: 0,
+        animTime: 0,
+        hudTimer: 0,
+        countdownTimers: [],
+        toastTimeout: null,
+
+        // Family Game Night Session Leaderboard
+        leaderboard: {
+          gamesPlayed: 0,
+          players: {} // key (lowercase name) -> { name, wins, games, colorHex, colorText, flair }
+        },
+        resetConfirmTimer: { lobby: null, modal: null },
+        resetConfirmPending: { lobby: false, modal: false }
+      };
+
+      /* ===================================================================
+         5. FAMILY GAME NIGHT SESSION LEADERBOARD
+      =================================================================== */
+      const LEADERBOARD_KEY = 'chooseAMarble_familyNight_v1';
+
+      function loadLeaderboard() {
+        try {
+          const raw = sessionStorage.getItem(LEADERBOARD_KEY);
+          if (!raw) return;
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed.gamesPlayed === 'number' && parsed.players) {
+            state.leaderboard = parsed;
+          }
+        } catch {
+          // Ignore storage issues in sandboxed frames
+        }
+      }
+
+      function saveLeaderboard() {
+        try {
+          sessionStorage.setItem(LEADERBOARD_KEY, JSON.stringify(state.leaderboard));
+        } catch {
+          // Ignore storage issues in sandboxed frames
+        }
+      }
+
+      function recordTournamentResult(winner, participants) {
+        state.leaderboard.gamesPlayed += 1;
+        const winKey = winner.name.trim().toLowerCase();
+
+        for (const p of participants) {
+          const key = p.name.trim().toLowerCase();
+          if (!state.leaderboard.players[key]) {
+            state.leaderboard.players[key] = {
+              name: p.name.trim(),
+              wins: 0,
+              games: 0,
+              colorHex: p.color.hex,
+              colorText: p.color.text,
+              flair: p.flair || 'initial'
+            };
+          }
+          const rec = state.leaderboard.players[key];
+          rec.name = p.name.trim();
+          rec.games += 1;
+          rec.colorHex = p.color.hex;
+          rec.colorText = p.color.text;
+          rec.flair = p.flair || 'initial';
+          if (key === winKey) {
+            rec.wins += 1;
+          }
+        }
+
+        saveLeaderboard();
+        updateAllLeaderboardUIs();
+      }
+
+      function getSortedLeaderboardEntries() {
+        return Object.values(state.leaderboard.players).sort((a, b) => {
+          if (b.wins !== a.wins) return b.wins - a.wins;
+          if (b.games !== a.games) return b.games - a.games;
+          return a.name.localeCompare(b.name);
+        });
+      }
+
+      function renderLeaderboardRow(entry, idx, compact = false) {
+        const rank = idx + 1;
+        const badge = rank === 1 && entry.wins > 0 ? '👑' : `#${rank}`;
+        const flair = getPlayerFlair({ name: entry.name, flair: entry.flair });
+        const winLabel = entry.wins === 1 ? '1 Win' : `${entry.wins} Wins`;
+        const gameLabel = entry.games === 1 ? '1 game' : `${entry.games} games`;
+
+        return `
+          <div class="flex items-center justify-between ${compact ? 'px-2.5 py-1.5' : 'px-3.5 py-2.5'} rounded-2xl border-2 ${
+            rank === 1 && entry.wins > 0
+              ? 'bg-amber-50 border-amber-300'
+              : 'bg-slate-50 border-slate-100'
+          }">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="font-display font-bold ${compact ? 'text-sm w-5' : 'text-base w-6'} text-center text-slate-600">${badge}</span>
+              <div class="marble-orb ${compact ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'} shrink-0 flex items-center justify-center font-display font-bold leading-none"
+                   style="background:${entry.colorHex}; color:${entry.colorText}">
+                ${escapeHtml(flair.text)}
+              </div>
+              <div class="min-w-0">
+                <div class="font-bold text-slate-800 ${compact ? 'text-xs' : 'text-sm'} truncate">${escapeHtml(entry.name)}</div>
+                <div class="text-[11px] font-bold text-slate-400">${gameLabel}</div>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 rounded-full ${
+              entry.wins > 0 ? 'bg-amber-200/90 text-amber-950' : 'bg-slate-200/80 text-slate-500'
+            } text-xs font-extrabold whitespace-nowrap">
+              🏆 ${winLabel}
+            </span>
+          </div>
+        `;
+      }
+
+      function updateAllLeaderboardUIs() {
+        const entries = getSortedLeaderboardEntries();
+        const games = state.leaderboard.gamesPlayed;
+        const gamesText = games === 1 ? '1 tournament played this sitting' : `${games} tournaments played this sitting`;
+
+        // Header shortcut button
+        els.headerGamesCount.textContent = String(games);
+        if (games > 0) {
+          els.leaderboardHeaderBtn.classList.remove('hidden');
+        } else {
+          els.leaderboardHeaderBtn.classList.add('hidden');
+        }
+
+        // Lobby Leaderboard Card
+        if (games > 0 && entries.length > 0) {
+          els.lobbyLeaderboardCard.classList.remove('hidden');
+          els.lobbyLeaderboardSubtitle.textContent = gamesText;
+          els.lobbyLeaderboardList.innerHTML = entries.map((e, i) => renderLeaderboardRow(e, i, false)).join('');
+        } else {
+          els.lobbyLeaderboardCard.classList.add('hidden');
+        }
+
+        // Modal Leaderboard
+        els.modalLeaderboardSubtitle.textContent = gamesText;
+        els.modalLeaderboardList.innerHTML = entries.length > 0
+          ? entries.map((e, i) => renderLeaderboardRow(e, i, false)).join('')
+          : `<div class="text-center py-6 text-sm font-bold text-slate-400">Finish a tournament to start the family scoreboard!</div>`;
+
+        // Grand Champion Modal Summary
+        els.championGamesPill.textContent = `Game #${games}`;
+        els.championLeaderboardList.innerHTML = entries.slice(0, 5).map((e, i) => renderLeaderboardRow(e, i, true)).join('');
+      }
+
+      function clearResetConfirmButtons() {
+        ['lobby', 'modal'].forEach(which => {
+          state.resetConfirmPending[which] = false;
+          if (state.resetConfirmTimer[which]) {
+            clearTimeout(state.resetConfirmTimer[which]);
+            state.resetConfirmTimer[which] = null;
+          }
+          const btn = which === 'lobby' ? els.lobbyResetLeaderboardBtn : els.modalResetLeaderboardBtn;
+          btn.textContent = 'Reset Scores';
+          btn.className = 'toy-btn px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 text-xs font-extrabold';
+        });
+      }
+
+      function handleResetLeaderboardClick(which) {
+        SoundFX.click();
+        const btn = which === 'lobby' ? els.lobbyResetLeaderboardBtn : els.modalResetLeaderboardBtn;
+        if (!state.resetConfirmPending[which]) {
+          state.resetConfirmPending[which] = true;
+          btn.textContent = 'Tap again to confirm!';
+          btn.className = 'toy-btn px-3 py-1.5 rounded-xl bg-rose-500 border border-rose-600 text-white text-xs font-extrabold';
+          state.resetConfirmTimer[which] = setTimeout(() => {
+            clearResetConfirmButtons();
+          }, 3200);
+          return;
+        }
+
+        // Confirmed reset
+        state.leaderboard = { gamesPlayed: 0, players: {} };
+        saveLeaderboard();
+        clearResetConfirmButtons();
+        updateAllLeaderboardUIs();
+        if (which === 'modal') {
+          els.leaderboardModal.classList.add('hidden');
+        }
+      }
+
+      /* ===================================================================
+         6. LOBBY SETUP UI (PLAYER COUNT, TRACK PICKER, COLORS & FLAIR)
+      =================================================================== */
+      function ensureUniqueLobbyColors() {
+        const used = new Set();
+        for (let i = 0; i < state.playerCount; i++) {
+          const p = state.lobbyPlayers[i];
+          if (used.has(p.colorId)) {
+            const avail = MARBLE_COLORS.find(c => !used.has(c.id));
+            if (avail) p.colorId = avail.id;
+          }
+          used.add(p.colorId);
+        }
+      }
+
+      function renderPlayerCountButtons() {
+        els.playerCountBtns.innerHTML = [2, 3, 4, 5].map(num => {
+          const active = state.playerCount === num;
+          return `
+            <button type="button" data-count="${num}"
+              class="toy-btn w-9 h-9 rounded-xl font-display font-bold text-base transition-colors ${
+                active
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-white text-slate-600 hover:bg-sky-100'
+              }">
+              ${num}
+            </button>
+          `;
+        }).join('');
+
+        els.playerCountBtns.querySelectorAll('button').forEach(btn => {
+          btn.addEventListener('click', () => {
+            SoundFX.click();
+            state.playerCount = Number(btn.dataset.count);
+            ensureUniqueLobbyColors();
+            renderPlayerCountButtons();
+            renderPlayerCards();
+          });
+        });
+      }
+
+      function renderTrackPicker() {
+        els.trackPickerGrid.innerHTML = TRACK_CATALOG.map(t => {
+          const selected = state.trackId === t.id;
+          return `
+            <button type="button" data-track="${t.id}" ${t.locked ? 'disabled' : ''}
+              class="toy-btn text-left p-3 rounded-2xl border-2 transition-all flex flex-col justify-between ${
+                selected
+                  ? 'bg-sky-50 border-blue-500 ring-2 ring-blue-200 shadow-sm'
+                  : 'bg-white border-slate-200 hover:border-sky-300 hover:bg-sky-50/40'
+              }">
+              <div>
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <span class="inline-flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-gradient-to-r ${t.accent} text-white">
+                    <span>${t.icon}</span>
+                    <span>${t.number}</span>
+                  </span>
+                  ${selected ? '<span class="text-xs font-extrabold text-blue-600">✓ Selected</span>' : ''}
+                </div>
+                <div class="font-display font-bold text-base text-slate-800 leading-tight">${t.name}</div>
+                <p class="text-[11px] font-bold text-slate-500 mt-0.5 leading-snug">${t.desc}</p>
+              </div>
+            </button>
+          `;
+        }).join('');
+
+        els.trackPickerGrid.querySelectorAll('button[data-track]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            SoundFX.click();
+            state.trackId = btn.dataset.track;
+            renderTrackPicker();
+          });
+        });
+      }
+
+      function renderPlayerCards() {
+        const activeSlice = state.lobbyPlayers.slice(0, state.playerCount);
+        const takenBy = {};
+        activeSlice.forEach((p, idx) => { takenBy[p.colorId] = idx; });
+
+        els.playerSetupGrid.innerHTML = activeSlice.map((p, idx) => {
+          const color = MARBLE_COLORS.find(c => c.id === p.colorId) || MARBLE_COLORS[idx];
+          const flair = getPlayerFlair(p);
+
+          const swatchesHtml = MARBLE_COLORS.map(c => {
+            const isSelected = c.id === p.colorId;
+            const taken = takenBy[c.id] !== undefined && takenBy[c.id] !== idx;
+            return `
+              <button type="button"
+                data-player="${idx}" data-color="${c.id}"
+                title="${c.name}${taken ? ' (Taken)' : ''}"
+                ${taken ? 'disabled' : ''}
+                class="w-7 h-7 rounded-full transition-transform relative ${
+                  isSelected
+                    ? 'ring-3 ring-offset-2 ring-blue-500 scale-110'
+                    : taken
+                    ? 'opacity-25 cursor-not-allowed'
+                    : 'hover:scale-110'
+                }"
+                style="background:${c.hex}; box-shadow: inset -2px -2px 4px rgba(0,0,0,0.22), inset 2px 2px 4px rgba(255,255,255,0.45);">
+                ${isSelected ? '<span class="text-[11px] font-black" style="color:' + c.text + '">✓</span>' : ''}
+              </button>
+            `;
+          }).join('');
+
+          const flairsHtml = MARBLE_FLAIRS.map(f => {
+            const isSelected = (p.flair || 'initial') === f.id;
+            return `
+              <button type="button"
+                data-player="${idx}" data-flair="${f.id}"
+                title="${f.label}"
+                class="w-7 h-7 rounded-lg text-xs font-bold flex items-center justify-center transition-all ${
+                  isSelected
+                    ? 'bg-blue-600 text-white ring-2 ring-blue-300 scale-105'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-sky-50'
+                }">
+                ${f.icon}
+              </button>
+            `;
+          }).join('');
+
+          return `
+            <div class="p-3.5 rounded-2xl bg-slate-50/90 border-2 border-slate-100 flex flex-col gap-2.5">
+              <div class="flex items-center gap-3">
+                <div class="marble-orb w-12 h-12 shrink-0 flex items-center justify-center font-display font-bold ${flair.isEmoji ? 'text-2xl leading-none' : 'text-xl'}"
+                     style="background:${color.hex}; color:${color.text}">
+                  ${escapeHtml(flair.text)}
+                </div>
+                <div class="flex-1 min-w-0">
+                  <label class="block text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-0.5">
+                    Player ${idx + 1} Name
+                  </label>
+                  <input type="text" maxlength="14" data-name-idx="${idx}"
+                    value="${escapeHtml(p.name)}"
+                    placeholder="Enter name..."
+                    class="w-full px-3 py-1.5 rounded-xl bg-white border-2 border-slate-200 focus:border-blue-400 focus:outline-none font-bold text-slate-800 text-sm" />
+                </div>
+              </div>
+
+              <div>
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1.5">Marble Color</div>
+                <div class="flex flex-wrap gap-1.5">${swatchesHtml}</div>
+              </div>
+
+              <div>
+                <div class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 mb-1.5">Marble Flair</div>
+                <div class="flex flex-wrap gap-1">${flairsHtml}</div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+        // Name inputs
+        els.playerSetupGrid.querySelectorAll('input[data-name-idx]').forEach(input => {
+          input.addEventListener('input', (e) => {
+            const idx = Number(e.target.dataset.nameIdx);
+            state.lobbyPlayers[idx].name = e.target.value;
+            // Live update preview orb if using initial
+            if ((state.lobbyPlayers[idx].flair || 'initial') === 'initial') {
+              const card = e.target.closest('div.p-3\\.5');
+              const orb = card ? card.querySelector('.marble-orb') : null;
+              if (orb) orb.textContent = getPlayerFlair(state.lobbyPlayers[idx]).text;
+            }
+          });
+        });
+
+        // Color swatches
+        els.playerSetupGrid.querySelectorAll('button[data-color]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            SoundFX.click();
+            const idx = Number(btn.dataset.player);
+            state.lobbyPlayers[idx].colorId = btn.dataset.color;
+            renderPlayerCards();
+          });
+        });
+
+        // Flair buttons
+        els.playerSetupGrid.querySelectorAll('button[data-flair]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            SoundFX.click();
+            const idx = Number(btn.dataset.player);
+            state.lobbyPlayers[idx].flair = btn.dataset.flair;
+            renderPlayerCards();
+          });
+        });
+      }
+
+      /* ===================================================================
+         7. ZERO-JAM MATTER.JS PHYSICS & 3-TRACK PROCEDURAL BUILDER
+      =================================================================== */
+      function buildPhysicsWorldAndTrack() {
+        const { Engine, Bodies, Body, Composite, Events } = window.Matter;
+
+        // Fresh high-precision Matter.js engine (sleeping disabled so marbles never stall)
+        const engine = Engine.create({
+          gravity: { x: 0, y: 1.05 },
+          enableSleeping: false,
+          positionIterations: 10,
+          velocityIterations: 8
+        });
+        state.engine = engine;
+
+        state.marbles = [];
+        state.ramps = [];
+        state.pegs = [];
+        state.bumpers = [];
+        state.diamonds = [];
+        state.spinners = [];
+        state.portals = [];
+        state.boostPads = [];
+        state.stageZones = [];
+        state.laneLabels = [];
+        state.particles = [];
+        state.confetti = [];
+        state.finishedCount = 0;
+        state.raceElapsed = 0;
+        state.roundResolved = false;
+        state.finishEarlyReady = false;
+        state.cameraY = 0;
+        state.cameraZoom = 1;
+        state.targetZoom = 1;
+        state.timeScale = 1;
+        state.targetTimeScale = 1;
+        state.slowMoActive = false;
+        state.slowMoTriggeredForLead = false;
+        state.slowMoTriggeredForElim = false;
+
+        const world = engine.world;
+        const pegPalette = ['#38BDF8', '#F472B6', '#34D399', '#FBBF24', '#A78BFA', '#FB923C'];
+        const bumperPalette = ['#FB7185', '#FBBF24', '#34D399', '#60A5FA', '#C084FC'];
+
+        // Geometry Helpers (all walls & ramps built with zero-jam clearance)
+        function addSlopedRamp(x1, y1, x2, y2, thickness, color, border) {
+          const dx = x2 - x1;
+          const dy = y2 - y1;
+          const len = Math.hypot(dx, dy);
+          const angle = Math.atan2(dy, dx);
+          const cx = (x1 + x2) / 2;
+          const cy = (y1 + y2) / 2;
+          const body = Bodies.rectangle(cx, cy, len, thickness, {
+            isStatic: true,
+            angle,
+            restitution: 0.42,
+            friction: 0.008,
+            chamfer: { radius: Math.min(7, thickness / 2) },
+            label: 'ramp'
+          });
+          Composite.add(world, body);
+          state.ramps.push({ cx, cy, len, thickness, angle, color, border, body });
+          return body;
+        }
+
+        function addPeg(x, y, radius, color) {
+          const body = Bodies.circle(x, y, radius, {
+            isStatic: true,
+            restitution: 0.65,
+            friction: 0.005,
+            label: 'peg'
+          });
+          const pegObj = { x, y, radius, color, flash: 0, body };
+          body.plugin = { pegObj };
+          Composite.add(world, body);
+          state.pegs.push(pegObj);
+          return pegObj;
+        }
+
+        function addBumper(x, y, radius, color) {
+          const body = Bodies.circle(x, y, radius, {
+            isStatic: true,
+            restitution: 1.15,
+            friction: 0.002,
+            label: 'bumper'
+          });
+          const bumperObj = { x, y, radius, color, pulse: 0, body };
+          body.plugin = { bumperObj };
+          Composite.add(world, body);
+          state.bumpers.push(bumperObj);
+          return bumperObj;
+        }
+
+        function addDiamond(x, y, size, color, border) {
+          const body = Bodies.rectangle(x, y, size, size, {
+            isStatic: true,
+            angle: Math.PI / 4,
+            restitution: 0.52,
+            friction: 0.006,
+            chamfer: { radius: 8 },
+            label: 'diamond'
+          });
+          Composite.add(world, body);
+          state.diamonds.push({ x, y, size, color, border, body });
+          return body;
+        }
+
+        function addSpinner(x, y, radius, thick, blades, angularSpeed, color) {
+          const parts = [];
+          if (blades === 2 || blades === 4) {
+            const bars = blades / 2;
+            for (let i = 0; i < bars; i++) {
+              parts.push(Bodies.rectangle(x, y, radius * 2, thick, {
+                angle: (i * Math.PI) / bars,
+                chamfer: { radius: thick / 2 }
+              }));
+            }
+          } else {
+            for (let i = 0; i < blades; i++) {
+              const ang = (i * Math.PI * 2) / blades;
+              parts.push(Bodies.rectangle(
+                x + Math.cos(ang) * (radius / 2),
+                y + Math.sin(ang) * (radius / 2),
+                radius,
+                thick,
+                { angle: ang, chamfer: { radius: thick / 2 } }
+              ));
+            }
+          }
+          const body = Body.create({
+            parts,
+            isStatic: true,
+            restitution: 0.6,
+            friction: 0.008,
+            label: 'spinner'
+          });
+          Body.setPosition(body, { x, y });
+          Composite.add(world, body);
+          const sp = { x, y, radius, thick, blades, angle: 0, angularSpeed, color, body };
+          state.spinners.push(sp);
+          return sp;
+        }
+
+        function addPortalPair(entryX, entryY, exitX, exitY, color, light, label, boostX = 0) {
+          state.portals.push({
+            entry: { x: entryX, y: entryY, r: 28 },
+            exit: { x: exitX, y: exitY, r: 28 },
+            color,
+            light,
+            label,
+            boostX,
+            pulse: 0
+          });
+        }
+
+        function addBoostPad(x, y, width, height, angle, forceX, forceY, color = '#FACC15') {
+          state.boostPads.push({ x, y, width, height, angle, forceX, forceY, color, flash: 0 });
+        }
+
+        // -----------------------------------------------------------------
+        // STAGE 0: TOP SCRAMBLE FUNNEL & START GATE (Shared by all tracks)
+        // -----------------------------------------------------------------
+        state.stageZones.push({ y: 165, label: 'Top Scramble Funnel', banner: '★ TOP SCRAMBLE ★', color: '#0284C7' });
+
+        // Closed start gate holds marbles neatly until "GO!"
+        state.startGateBody = Bodies.rectangle(CENTER_X, 112, INNER_W + 40, 16, {
+          isStatic: true,
+          restitution: 0.2,
+          friction: 0.05,
+          label: 'gate'
+        });
+        Composite.add(world, state.startGateBody);
+
+        // Mixer pegs + gentle scramble funnel (98px neck width > 2.7x marble diameter)
+        addPeg(CENTER_X - 110, 170, 9, '#38BDF8');
+        addPeg(CENTER_X,       185, 9, '#F472B6');
+        addPeg(CENTER_X + 110, 170, 9, '#34D399');
+        addSlopedRamp(INNER_L - 40, 210, CENTER_X - 50, 365, 16, '#38BDF8', '#0284C7');
+        addSlopedRamp(INNER_R + 40, 210, CENTER_X + 50, 365, 16, '#38BDF8', '#0284C7');
+        addDiamond(CENTER_X, 455, 48, '#FBBF24', '#D97706');
+
+        let cursorY = 550;
+
+        // -----------------------------------------------------------------
+        // TRACK ROUTING: TRACK 2 (SPLIT-LANE), TRACK 3 (GIANT SLIDE), TRACK 1 (CLASSIC)
+        // -----------------------------------------------------------------
+        if (state.trackId === 'splitlane') {
+          // ===============================================================
+          // TRACK 2: SPLIT-LANE SPEEDWAY (LEFT VS. RIGHT PATHS)
+          // ===============================================================
+          const laneW = INNER_W / 2; // 300px each
+          const leftCenter = INNER_L + laneW / 2;   // 170
+          const rightCenter = INNER_R - laneW / 2;  // 470
+
+          function buildLaneChallenge(type, isLeft, yStart) {
+            const lx = isLeft ? INNER_L : CENTER_X + 8;
+            const rx = isLeft ? CENTER_X - 8 : INNER_R;
+            const cx = isLeft ? leftCenter : rightCenter;
+
+            if (type === 'turboSlide') {
+              state.laneLabels.push({ x: cx, y: yStart + 36, text: '🚀 TURBO SLIDE', color: '#EA580C' });
+              const ang1 = Math.atan2(120, 175);
+              const ang2 = Math.atan2(120, -175);
+              addSlopedRamp(lx - 20, yStart + 80, rx - 105, yStart + 205, 14, '#FB923C', '#C2410C');
+              addBoostPad(cx - 20, yStart + 130, 88, 24, ang1, 9.5, 4.2, '#FACC15');
+
+              addSlopedRamp(rx + 20, yStart + 265, lx + 105, yStart + 390, 14, '#F59E0B', '#B45309');
+              addBoostPad(cx + 20, yStart + 315, 88, 24, ang2, -9.5, 4.2, '#FB923C');
+
+              addSlopedRamp(lx - 20, yStart + 455, rx - 105, yStart + 580, 14, '#38BDF8', '#0284C7');
+              addBoostPad(cx - 15, yStart + 505, 88, 24, ang1, 10.0, 4.5, '#22C55E');
+
+              addBoostPad(cx, yStart + 675, 95, 28, Math.PI / 2, 0, 12.5, '#FACC15');
+              return;
+            }
+
+            if (type === 'plinkoMaze') {
+              state.laneLabels.push({ x: cx, y: yStart + 36, text: '🎯 PLINKO MAZE', color: '#0284C7' });
+              for (let row = 0; row < 6; row++) {
+                const ry = yStart + 115 + row * 102;
+                const cols = row % 2 === 0 ? 2 : 3;
+                const span = cols === 2 ? 120 : 170;
+                for (let c = 0; c < cols; c++) {
+                  const px = cx - span / 2 + (cols === 1 ? 0 : (c * span) / (cols - 1));
+                  addPeg(px, ry, 9, pegPalette[(row + c) % pegPalette.length]);
+                }
+              }
+              return;
+            }
+
+            if (type === 'warpShortcut') {
+              state.laneLabels.push({ x: cx, y: yStart + 36, text: '🌀 WARP SHORTCUT', color: '#0891B2' });
+              addDiamond(cx, yStart + 145, 44, '#38BDF8', '#0284C7');
+              addPortalPair(
+                cx, yStart + 285,
+                cx + (isLeft ? 28 : -28), yStart + 625,
+                isLeft ? '#06B6D4' : '#EC4899',
+                isLeft ? '#A5F3FC' : '#FBCFE8',
+                isLeft ? 'Left Warp' : 'Right Warp',
+                isLeft ? 3.5 : -3.5
+              );
+              addPeg(cx - 72, yStart + 390, 9, '#F472B6');
+              addPeg(cx + 72, yStart + 390, 9, '#34D399');
+              addBumper(cx, yStart + 490, 22, '#A78BFA');
+              return;
+            }
+
+            if (type === 'pinballAlley') {
+              state.laneLabels.push({ x: cx, y: yStart + 36, text: '⚡ PINBALL ALLEY', color: '#DB2777' });
+              addBumper(cx - 58, yStart + 165, 22, '#FB7185');
+              addBumper(cx + 58, yStart + 275, 22, '#FBBF24');
+              addBumper(cx - 52, yStart + 405, 24, '#34D399');
+              addBumper(cx + 52, yStart + 535, 22, '#60A5FA');
+              addBumper(cx,      yStart + 660, 20, '#C084FC');
+              return;
+            }
+
+            if (type === 'windmillSpin') {
+              state.laneLabels.push({ x: cx, y: yStart + 36, text: '🌀 WINDMILL SPIN', color: '#7C3AED' });
+              addSpinner(cx, yStart + 215, 72, 13, 4, isLeft ? 0.022 : -0.022, '#A78BFA');
+              addPeg(cx - 70, yStart + 380, 9, '#FBBF24');
+              addPeg(cx + 70, yStart + 380, 9, '#38BDF8');
+              addSpinner(cx, yStart + 545, 72, 13, 3, isLeft ? -0.025 : 0.025, '#F472B6');
+              return;
+            }
+
+            // diamondChute
+            state.laneLabels.push({ x: cx, y: yStart + 36, text: '💎 DIAMOND CHUTE', color: '#059669' });
+            addDiamond(cx, yStart + 150, 48, '#34D399', '#059669');
+            addDiamond(cx - 60, yStart + 320, 42, '#60A5FA', '#2563EB');
+            addDiamond(cx + 60, yStart + 320, 42, '#F472B6', '#DB2777');
+            addDiamond(cx, yStart + 495, 50, '#FBBF24', '#D97706');
+            addPeg(cx - 65, yStart + 635, 9, '#A78BFA');
+            addPeg(cx + 65, yStart + 635, 9, '#FB923C');
+          }
+
+          function buildSplitSection(num, title, leftType, rightType, yStart) {
+            state.stageZones.push({ y: yStart - 12, label: title, banner: `🔀 ${title.toUpperCase()}`, color: '#EA580C' });
+
+            // Sharp 50/50 splitter diamond right above the center divider wall (zero stalling)
+            addDiamond(CENTER_X, yStart + 45, 44, '#F59E0B', '#B45309');
+
+            // Solid vertical center divider wall separating Left & Right lanes
+            const wallH = 740;
+            const wallY = yStart + 65 + wallH / 2;
+            const divider = Bodies.rectangle(CENTER_X, wallY, 16, wallH, {
+              isStatic: true,
+              restitution: 0.45,
+              friction: 0.006,
+              chamfer: { radius: 8 },
+              label: 'ramp'
+            });
+            Composite.add(world, divider);
+            state.ramps.push({
+              cx: CENTER_X,
+              cy: wallY,
+              len: wallH,
+              thickness: 16,
+              angle: Math.PI / 2,
+              color: '#38BDF8',
+              border: '#0284C7',
+              body: divider
+            });
+
+            buildLaneChallenge(leftType, true, yStart + 70);
+            buildLaneChallenge(rightType, false, yStart + 70);
+
+            return yStart + 845;
+          }
+
+          function buildMergeFunnel(label, banner, fill, stroke, yStart, isHalfway) {
+            state.stageZones.push({ y: yStart - 10, label, banner, color: stroke });
+            addSlopedRamp(INNER_L - 40, yStart + 30, CENTER_X - 54, yStart + 215, 16, fill, stroke);
+            addSlopedRamp(INNER_R + 40, yStart + 30, CENTER_X + 54, yStart + 215, 16, fill, stroke);
+            addPeg(CENTER_X, yStart + 105, 9, '#F472B6');
+            if (isHalfway) {
+              addPeg(CENTER_X - 80, yStart + 295, 9, '#38BDF8');
+              addPeg(CENTER_X + 80, yStart + 295, 9, '#34D399');
+              return yStart + 385;
+            }
+            return yStart + 310;
+          }
+
+          const fastLanes = shuffle(['turboSlide', 'warpShortcut', 'turboSlide', 'warpShortcut']);
+          const trickyLanes = shuffle(['plinkoMaze', 'pinballAlley', 'windmillSpin', 'diamondChute']);
+          const pairs = fastLanes.map((fast, idx) => (
+            Math.random() < 0.5 ? [fast, trickyLanes[idx]] : [trickyLanes[idx], fast]
+          ));
+
+          cursorY = buildSplitSection(1, 'Split Fork #1', pairs[0][0], pairs[0][1], cursorY);
+          cursorY = buildMergeFunnel('Comeback Merge #1', '★ COMEBACK MERGE #1 ★', '#34D399', '#059669', cursorY, false);
+
+          cursorY = buildSplitSection(2, 'Split Fork #2', pairs[1][0], pairs[1][1], cursorY);
+          cursorY = buildMergeFunnel('Halfway Comeback Merge', '★ HALFWAY COMEBACK ★', '#FBBF24', '#D97706', cursorY, true);
+
+          cursorY = buildSplitSection(3, 'Split Fork #3', pairs[2][0], pairs[2][1], cursorY);
+          cursorY = buildMergeFunnel('Comeback Merge #2', '★ COMEBACK MERGE #2 ★', '#A78BFA', '#7C3AED', cursorY, false);
+
+          cursorY = buildSplitSection(4, 'Final Fork Showdown', pairs[3][0], pairs[3][1], cursorY);
+        } else if (state.trackId === 'giantslide') {
+          // ===============================================================
+          // TRACK 3: THE GIANT MARBLE SLIDE (FAST CHUTES & SWEEPING RAMPS)
+          // ===============================================================
+          const slideOrderA = shuffle(['sweepingZigZag', 'cascadeSteps', 'turboLaunch']);
+          const slideOrderB = shuffle(['crossTrackWarps', 'doubleSwitchback', 'turboCascade']);
+
+          function buildSlideModule(type, startY) {
+            const y = startY;
+
+            if (type === 'sweepingZigZag') {
+              state.stageZones.push({ y: y - 10, label: 'Sweeping Wooden Slides', banner: '🎢 SWEEPING SLIDES', color: '#D97706' });
+              addSlopedRamp(INNER_L - 40, y + 40,  INNER_R - 140, y + 205, 16, '#F59E0B', '#B45309');
+              addPeg(INNER_R - 72, y + 195, 9, '#38BDF8');
+
+              addSlopedRamp(INNER_R + 40, y + 245, INNER_L + 140, y + 410, 16, '#FB923C', '#C2410C');
+              addPeg(INNER_L + 72, y + 400, 9, '#34D399');
+
+              addSlopedRamp(INNER_L - 40, y + 450, INNER_R - 140, y + 615, 16, '#FBBF24', '#B45309');
+              addPeg(INNER_R - 72, y + 605, 9, '#EC4899');
+
+              addSlopedRamp(INNER_R + 40, y + 655, INNER_L + 140, y + 820, 16, '#FB923C', '#C2410C');
+              addPeg(INNER_L + 72, y + 810, 9, '#A78BFA');
+
+              addSlopedRamp(INNER_L - 40, y + 860, INNER_R - 140, y + 1025, 16, '#F59E0B', '#B45309');
+              return y + 1090;
+            }
+
+            if (type === 'turboLaunch') {
+              state.stageZones.push({ y: y - 10, label: 'Turbo Launch Ramps', banner: '🚀 TURBO LAUNCH RAMPS', color: '#EA580C' });
+              const angR = Math.atan2(165, 500);
+              const angL = Math.atan2(165, -500);
+
+              addSlopedRamp(INNER_L - 40, y + 45,  INNER_R - 140, y + 210, 16, '#38BDF8', '#0284C7');
+              addBoostPad(CENTER_X - 90, y + 106, 130, 28, angR, 12.5, 4.6, '#FACC15');
+              addBumper(INNER_R - 72, y + 195, 18, '#FB7185');
+
+              addSlopedRamp(INNER_R + 40, y + 260, INNER_L + 140, y + 425, 16, '#34D399', '#059669');
+              addBoostPad(CENTER_X + 90, y + 321, 130, 28, angL, -12.5, 4.6, '#FB923C');
+              addBumper(INNER_L + 72, y + 410, 18, '#FBBF24');
+
+              addSlopedRamp(INNER_L - 40, y + 475, INNER_R - 140, y + 640, 16, '#A78BFA', '#7C3AED');
+              addBoostPad(CENTER_X - 70, y + 542, 135, 28, angR, 13.0, 4.8, '#22C55E');
+
+              addSlopedRamp(INNER_R + 40, y + 690, INNER_L + 140, y + 855, 16, '#F472B6', '#DB2777');
+              addBoostPad(CENTER_X + 70, y + 757, 135, 28, angL, -13.0, 4.8, '#38BDF8');
+              return y + 925;
+            }
+
+            if (type === 'cascadeSteps') {
+              state.stageZones.push({ y: y - 10, label: 'Cascade Stair-Steps', banner: '🪜 CASCADE STAIR-STEPS', color: '#059669' });
+              const stepColors = [
+                ['#34D399', '#059669'],
+                ['#38BDF8', '#0284C7'],
+                ['#FBBF24', '#D97706'],
+                ['#F472B6', '#DB2777'],
+                ['#A78BFA', '#7C3AED'],
+                ['#FB923C', '#EA580C']
+              ];
+
+              addDiamond(CENTER_X, y + 70, 52, '#34D399', '#059669');
+
+              for (let s = 0; s < 6; s++) {
+                const sy = y + 140 + s * 135;
+                const [fill, stroke] = stepColors[s % stepColors.length];
+                if (s % 2 === 0) {
+                  addSlopedRamp(INNER_L - 40, sy, CENTER_X - 78, sy + 88, 15, fill, stroke);
+                  addSlopedRamp(INNER_R + 40, sy, CENTER_X + 78, sy + 88, 15, fill, stroke);
+                  addPeg(CENTER_X, sy + 52, 9, '#FBBF24');
+                } else {
+                  addSlopedRamp(CENTER_X, sy, INNER_L + 125, sy + 82, 15, fill, stroke);
+                  addSlopedRamp(CENTER_X, sy, INNER_R - 125, sy + 82, 15, fill, stroke);
+                  addPeg(INNER_L + 65, sy + 88, 8, '#38BDF8');
+                  addPeg(INNER_R - 65, sy + 88, 8, '#F472B6');
+                }
+              }
+              return y + 985;
+            }
+
+            if (type === 'crossTrackWarps') {
+              state.stageZones.push({ y: y - 10, label: 'Cross-Track Teleporters', banner: '🌀 CROSS-TRACK WARPS', color: '#0891B2' });
+              addSlopedRamp(INNER_L - 40, y + 45, INNER_R - 155, y + 200, 16, '#22D3EE', '#0E7490');
+              addPortalPair(
+                INNER_R - 92, y + 215,
+                INNER_L + 95, y + 515,
+                '#06B6D4', '#A5F3FC', 'Cross Warp A', 6.5
+              );
+
+              addSlopedRamp(INNER_R + 40, y + 285, INNER_L + 155, y + 440, 16, '#F472B6', '#BE185D');
+              addPortalPair(
+                INNER_L + 92, y + 455,
+                INNER_R - 95, y + 755,
+                '#EC4899', '#FBCFE8', 'Cross Warp B', -6.5
+              );
+
+              addSlopedRamp(INNER_L - 40, y + 530, INNER_R - 155, y + 685, 16, '#38BDF8', '#0284C7');
+              addBumper(CENTER_X, y + 735, 24, '#FBBF24');
+              addSlopedRamp(INNER_R + 40, y + 775, INNER_L + 155, y + 930, 16, '#A78BFA', '#7C3AED');
+              return y + 995;
+            }
+
+            if (type === 'doubleSwitchback') {
+              state.stageZones.push({ y: y - 10, label: 'Express Switchbacks', banner: '⚡ EXPRESS SWITCHBACKS', color: '#7C3AED' });
+              const angR = Math.atan2(145, 480);
+              const angL = Math.atan2(145, -480);
+
+              addSlopedRamp(INNER_L - 40, y + 40,  INNER_R - 150, y + 185, 15, '#A78BFA', '#6D28D9');
+              addBoostPad(CENTER_X - 40, y + 100, 105, 26, angR, 11.5, 4.2, '#FACC15');
+
+              addSlopedRamp(INNER_R + 40, y + 230, INNER_L + 150, y + 375, 15, '#60A5FA', '#2563EB');
+              addPeg(INNER_L + 75, y + 335, 9, '#34D399');
+
+              addSlopedRamp(INNER_L - 40, y + 430, INNER_R - 150, y + 575, 15, '#34D399', '#059669');
+              addBoostPad(CENTER_X - 40, y + 490, 105, 26, angR, 11.5, 4.2, '#FB923C');
+
+              addSlopedRamp(INNER_R + 40, y + 620, INNER_L + 150, y + 765, 15, '#FBBF24', '#D97706');
+              addBoostPad(CENTER_X + 40, y + 680, 105, 26, angL, -11.5, 4.2, '#38BDF8');
+              return y + 835;
+            }
+
+            if (type === 'turboCascade') {
+              state.stageZones.push({ y: y - 10, label: 'Turbo Step Chutes', banner: '💨 TURBO STEP CHUTES', color: '#0284C7' });
+              addSlopedRamp(INNER_L - 40, y + 45, CENTER_X - 65, y + 175, 15, '#38BDF8', '#0284C7');
+              addSlopedRamp(INNER_R + 40, y + 45, CENTER_X + 65, y + 175, 15, '#38BDF8', '#0284C7');
+              addDiamond(CENTER_X, y + 265, 58, '#F59E0B', '#B45309');
+
+              addBoostPad(INNER_L + 115, y + 345, 100, 30, Math.PI / 2, 0, 13.5, '#22C55E');
+              addBoostPad(INNER_R - 115, y + 345, 100, 30, Math.PI / 2, 0, 13.5, '#FACC15');
+
+              addSlopedRamp(INNER_L - 40, y + 470, INNER_R - 145, y + 625, 16, '#FB923C', '#C2410C');
+              addSlopedRamp(INNER_R + 40, y + 665, INNER_L + 145, y + 820, 16, '#F59E0B', '#B45309');
+              addPeg(CENTER_X, y + 860, 10, '#EC4899');
+              return y + 905;
+            }
+
+            return y + 850;
+          }
+
+          for (const mod of slideOrderA) {
+            cursorY = buildSlideModule(mod, cursorY);
+          }
+
+          // Halfway Comeback Funnel
+          state.stageZones.push({ y: cursorY - 10, label: 'Halfway Comeback Funnel', banner: '★ HALFWAY COMEBACK ★', color: '#D97706' });
+          addSlopedRamp(INNER_L - 40, cursorY + 35, CENTER_X - 54, cursorY + 230, 16, '#FBBF24', '#B45309');
+          addSlopedRamp(INNER_R + 40, cursorY + 35, CENTER_X + 54, cursorY + 230, 16, '#FBBF24', '#B45309');
+          addPeg(CENTER_X, cursorY + 115, 10, '#F472B6');
+          addPeg(CENTER_X - 80, cursorY + 315, 10, '#38BDF8');
+          addPeg(CENTER_X + 80, cursorY + 315, 10, '#34D399');
+          addDiamond(CENTER_X, cursorY + 410, 56, '#A78BFA', '#7C3AED');
+          cursorY += 515;
+
+          for (const mod of slideOrderB) {
+            cursorY = buildSlideModule(mod, cursorY);
+          }
+        } else {
+          // ===============================================================
+          // TRACK 1: CLASSIC TOYBOX MIX (~7,800px - 8,400px TALL)
+          // ===============================================================
+          function buildClassicModule(type, startY) {
+            const y = startY;
+
+            if (type === 'plinko') {
+              state.stageZones.push({ y: y - 10, label: 'Giant Plinko Forest', banner: '🎯 GIANT PLINKO FOREST', color: '#0284C7' });
+              for (let row = 0; row < 7; row++) {
+                const ry = y + 60 + row * 95;
+                const cols = row % 2 === 0 ? 5 : 4;
+                const spacing = 105;
+                const totalW = (cols - 1) * spacing;
+                const startX = CENTER_X - totalW / 2;
+                for (let c = 0; c < cols; c++) {
+                  addPeg(startX + c * spacing, ry, 10, pegPalette[(row + c) % pegPalette.length]);
+                }
+              }
+              return y + 735;
+            }
+
+            if (type === 'zigzag') {
+              state.stageZones.push({ y: y - 10, label: 'Zig-Zag Slalom', banner: '⚡ ZIG-ZAG SLALOM', color: '#EA580C' });
+              addSlopedRamp(INNER_L - 40, y + 40,  INNER_R - 145, y + 185, 16, '#FB923C', '#C2410C');
+              addSlopedRamp(INNER_R + 40, y + 235, INNER_L + 145, y + 380, 16, '#FBBF24', '#B45309');
+              addSlopedRamp(INNER_L - 40, y + 430, INNER_R - 145, y + 575, 16, '#34D399', '#059669');
+              addSlopedRamp(INNER_R + 40, y + 625, INNER_L + 145, y + 770, 16, '#38BDF8', '#0284C7');
+              return y + 835;
+            }
+
+            if (type === 'windmills') {
+              state.stageZones.push({ y: y - 10, label: 'Twin Spinning Windmills', banner: '🌀 SPINNING WINDMILLS', color: '#7C3AED' });
+              addSpinner(CENTER_X - 115, y + 195, 86, 14, 4,  0.022, '#A78BFA');
+              addSpinner(CENTER_X + 115, y + 195, 86, 14, 4, -0.022, '#F472B6');
+              addPeg(CENTER_X, y + 365, 10, '#FBBF24');
+              addSpinner(CENTER_X, y + 525, 105, 14, 3, 0.024, '#38BDF8');
+              return y + 695;
+            }
+
+            if (type === 'bumpers') {
+              state.stageZones.push({ y: y - 10, label: 'Pinball Bounce Zone', banner: '✨ PINBALL BOUNCE ZONE', color: '#DB2777' });
+              const pts = [
+                [CENTER_X - 145, y + 110, 26], [CENTER_X + 145, y + 110, 26],
+                [CENTER_X,       y + 225, 30],
+                [CENTER_X - 165, y + 350, 25], [CENTER_X + 165, y + 350, 25],
+                [CENTER_X - 75,  y + 485, 24], [CENTER_X + 75,  y + 485, 24],
+                [CENTER_X,       y + 615, 28]
+              ];
+              pts.forEach(([bx, by, br], i) => addBumper(bx, by, br, bumperPalette[i % bumperPalette.length]));
+              return y + 705;
+            }
+
+            if (type === 'diamonds') {
+              state.stageZones.push({ y: y - 10, label: 'Split-Path Diamonds', banner: '💎 SPLIT-PATH DIAMONDS', color: '#059669' });
+              addDiamond(CENTER_X, y + 115, 58, '#34D399', '#059669');
+              addDiamond(CENTER_X - 135, y + 285, 54, '#38BDF8', '#0284C7');
+              addDiamond(CENTER_X + 135, y + 285, 54, '#F472B6', '#DB2777');
+              addDiamond(CENTER_X, y + 455, 62, '#FBBF24', '#D97706');
+              addPeg(CENTER_X - 145, y + 595, 10, '#A78BFA');
+              addPeg(CENTER_X + 145, y + 595, 10, '#FB923C');
+              return y + 675;
+            }
+
+            if (type === 'crosswheels') {
+              state.stageZones.push({ y: y - 10, label: 'Rotating Cross-Wheels', banner: '⚙️ ROTATING CROSS-WHEELS', color: '#2563EB' });
+              addSpinner(CENTER_X,       y + 165, 95, 14, 4,  0.020, '#60A5FA');
+              addSpinner(CENTER_X - 125, y + 395, 80, 14, 4, -0.024, '#34D399');
+              addSpinner(CENTER_X + 125, y + 395, 80, 14, 4,  0.024, '#FBBF24');
+              addDiamond(CENTER_X, y + 585, 52, '#F472B6', '#DB2777');
+              return y + 675;
+            }
+
+            if (type === 'portals') {
+              state.stageZones.push({ y: y - 10, label: 'Teleporter Portals', banner: '🌀 TELEPORTER PORTALS', color: '#0891B2' });
+              addDiamond(CENTER_X, y + 95, 50, '#22D3EE', '#0E7490');
+              addPortalPair(
+                INNER_L + 105, y + 230,
+                INNER_R - 115, y + 565,
+                '#06B6D4', '#A5F3FC', 'Aqua Shortcut', -4.5
+              );
+              addPortalPair(
+                INNER_R - 105, y + 290,
+                INNER_L + 115, y + 625,
+                '#EC4899', '#FBCFE8', 'Magenta Warp', 4.5
+              );
+              addBumper(CENTER_X, y + 385, 26, '#FBBF24');
+              addPeg(CENTER_X - 110, y + 485, 10, '#38BDF8');
+              addPeg(CENTER_X + 110, y + 485, 10, '#34D399');
+              return y + 725;
+            }
+
+            if (type === 'boosts') {
+              state.stageZones.push({ y: y - 10, label: 'Turbo Speed Boosts', banner: '🚀 TURBO SPEED BOOSTS', color: '#EA580C' });
+              const angR = Math.atan2(145, 460);
+              const angL = Math.atan2(145, -460);
+              addSlopedRamp(INNER_L - 40, y + 55, INNER_R - 155, y + 200, 16, '#F59E0B', '#B45309');
+              addBoostPad(CENTER_X - 65, y + 112, 120, 26, angR, 12.0, 4.4, '#FACC15');
+
+              addSlopedRamp(INNER_R + 40, y + 265, INNER_L + 155, y + 410, 16, '#38BDF8', '#0284C7');
+              addBoostPad(CENTER_X + 65, y + 322, 120, 26, angL, -12.0, 4.4, '#FB923C');
+
+              addDiamond(CENTER_X, y + 515, 52, '#A78BFA', '#7C3AED');
+              addBoostPad(INNER_L + 115, y + 590, 95, 28, Math.PI / 2, 0, 13.0, '#22C55E');
+              addBoostPad(INNER_R - 115, y + 590, 95, 28, Math.PI / 2, 0, 13.0, '#FACC15');
+              return y + 700;
+            }
+
+            // cascade
+            state.stageZones.push({ y: y - 10, label: 'Cascade Wave Ramps', banner: '🌊 CASCADE WAVE RAMPS', color: '#0284C7' });
+            for (let row = 0; row < 4; row++) {
+              const ry = y + 55 + row * 155;
+              if (row % 2 === 0) {
+                addSlopedRamp(INNER_L - 40, ry, CENTER_X - 78, ry + 95, 15, '#38BDF8', '#0284C7');
+                addSlopedRamp(INNER_R + 40, ry, CENTER_X + 78, ry + 95, 15, '#38BDF8', '#0284C7');
+              } else {
+                addSlopedRamp(CENTER_X, ry, INNER_L + 125, ry + 90, 15, '#34D399', '#059669');
+                addSlopedRamp(CENTER_X, ry, INNER_R - 125, ry + 90, 15, '#34D399', '#059669');
+              }
+            }
+            return y + 715;
+          }
+
+          // Guarantee both wildcard zones (Portals & Turbo Boosts) every round!
+          const standardPool = shuffle(['plinko', 'zigzag', 'windmills', 'bumpers', 'diamonds', 'crosswheels', 'cascade']);
+          const wildFirst = Math.random() < 0.5 ? 'portals' : 'boosts';
+          const wildSecond = wildFirst === 'portals' ? 'boosts' : 'portals';
+
+          const firstHalf = shuffle([standardPool[0], standardPool[1], standardPool[2], wildFirst]);
+          const secondHalf = shuffle([standardPool[3], standardPool[4], standardPool[5], wildSecond]);
+
+          for (const mod of firstHalf) {
+            cursorY = buildClassicModule(mod, cursorY);
+          }
+
+          // Guaranteed Halfway Comeback Funnel
+          state.stageZones.push({ y: cursorY - 10, label: 'Halfway Comeback Funnel', banner: '★ HALFWAY COMEBACK ★', color: '#D97706' });
+          addSlopedRamp(INNER_L - 40, cursorY + 35, CENTER_X - 54, cursorY + 230, 16, '#FBBF24', '#B45309');
+          addSlopedRamp(INNER_R + 40, cursorY + 35, CENTER_X + 54, cursorY + 230, 16, '#FBBF24', '#B45309');
+          addPeg(CENTER_X, cursorY + 115, 10, '#F472B6');
+          addPeg(CENTER_X - 80, cursorY + 315, 10, '#38BDF8');
+          addPeg(CENTER_X + 80, cursorY + 315, 10, '#34D399');
+          addDiamond(CENTER_X, cursorY + 410, 56, '#A78BFA', '#7C3AED');
+          cursorY += 515;
+
+          for (const mod of secondHalf) {
+            cursorY = buildClassicModule(mod, cursorY);
+          }
+        }
+
+        // -----------------------------------------------------------------
+        // FINAL PHOTO-FINISH FUNNEL & CHECKERED FINISH LINE (All Tracks)
+        // -----------------------------------------------------------------
+        state.stageZones.push({ y: cursorY - 10, label: 'Final Photo-Finish Sprint', banner: '🏁 FINAL PHOTO-FINISH 🏁', color: '#16A34A' });
+        addSlopedRamp(INNER_L - 40, cursorY + 30, CENTER_X - 60, cursorY + 205, 16, '#4ADE80', '#15803D');
+        addSlopedRamp(INNER_R + 40, cursorY + 30, CENTER_X + 60, cursorY + 205, 16, '#4ADE80', '#15803D');
+        addPeg(CENTER_X, cursorY + 285, 10, '#FBBF24');
+        addPeg(CENTER_X - 95, cursorY + 365, 10, '#38BDF8');
+        addPeg(CENTER_X + 95, cursorY + 365, 10, '#F472B6');
+
+        state.finishY = cursorY + 510;
+        state.worldHeight = state.finishY + 360;
+
+        // Solid Outer Side Rails & Bottom Catch Floor
+        const wallH = state.worldHeight + 400;
+        const leftWall = Bodies.rectangle(RAIL_W / 2, wallH / 2 - 200, RAIL_W, wallH, {
+          isStatic: true, restitution: 0.45, friction: 0.004, label: 'wall'
+        });
+        const rightWall = Bodies.rectangle(INNER_R + RAIL_W / 2, wallH / 2 - 200, RAIL_W, wallH, {
+          isStatic: true, restitution: 0.45, friction: 0.004, label: 'wall'
+        });
+        const catchFloor = Bodies.rectangle(CENTER_X, state.finishY + 220, WORLD_W + 80, 40, {
+          isStatic: true, restitution: 0.3, friction: 0.1, label: 'floor'
+        });
+        Composite.add(world, [leftWall, rightWall, catchFloor]);
+
+        // Spawn Surviving Marbles in Randomized Starting Order
+        const shuffledPlayers = shuffle(state.activePlayers);
+        const count = shuffledPlayers.length;
+        const spread = Math.min(340, (count - 1) * 78);
+        const startX0 = CENTER_X - spread / 2;
+
+        shuffledPlayers.forEach((player, idx) => {
+          const sx = count === 1 ? CENTER_X : startX0 + (idx * spread) / (count - 1);
+          const sy = 56 + (idx % 2) * 10;
+          const body = Bodies.circle(sx, sy, MARBLE_R, {
+            restitution: 0.56,
+            friction: 0.012,
+            frictionAir: 0.0018,
+            density: 0.004,
+            label: 'marble'
+          });
+          Composite.add(world, body);
+          state.marbles.push({
+            player,
+            body,
+            finished: false,
+            finishRank: 0,
+            finishTime: 0,
+            portalCooldown: 0,
+            boostTrail: 0,
+            trail: []
+          });
+        });
+
+        // Collision Listener for Cheerful Audio & Visual Flashes
+        Events.on(engine, 'collisionStart', (event) => {
+          if (state.phase !== 'racing') return;
+          for (const pair of event.pairs) {
+            const a = pair.bodyA;
+            const b = pair.bodyB;
+            const isMarbleA = a.label === 'marble';
+            const isMarbleB = b.label === 'marble';
+            if (!isMarbleA && !isMarbleB) continue;
+
+            const other = isMarbleA ? b : a;
+            const marbleBody = isMarbleA ? a : b;
+
+            if (other.label === 'peg' && other.plugin && other.plugin.pegObj) {
+              other.plugin.pegObj.flash = 1;
+              SoundFX.plink();
+            } else if (other.label === 'bumper' && other.plugin && other.plugin.bumperObj) {
+              other.plugin.bumperObj.pulse = 1;
+              const dx = marbleBody.position.x - other.position.x;
+              const dy = marbleBody.position.y - other.position.y;
+              const dist = Math.hypot(dx, dy) || 1;
+              Body.setVelocity(marbleBody, {
+                x: (dx / dist) * 9.5,
+                y: (dy / dist) * 9.5
+              });
+              spawnSparkles(other.position.x, other.position.y, other.plugin.bumperObj.color, 8);
+              SoundFX.bumper();
+            }
+          }
+        });
+
+        renderMinimapPortals();
+      }
+
+      /* ===================================================================
+         8. TOURNAMENT & ROUND LIFECYCLE
+      =================================================================== */
+      function clearCountdownTimers() {
+        state.countdownTimers.forEach(t => clearTimeout(t));
+        state.countdownTimers = [];
+      }
+
+      function startTournament() {
+        SoundFX.click();
+        els.lobbyError.classList.add('hidden');
+
+        if (!window.Matter) {
+          els.lobbyError.textContent = 'Physics engine is still loading—please wait a moment and try again!';
+          els.lobbyError.classList.remove('hidden');
+          return;
+        }
+
+        const players = [];
+        for (let i = 0; i < state.playerCount; i++) {
+          const lp = state.lobbyPlayers[i];
+          const trimmed = (lp.name || '').trim() || `Player ${i + 1}`;
+          const color = MARBLE_COLORS.find(c => c.id === lp.colorId) || MARBLE_COLORS[i];
+          players.push({
+            id: `p_${i}`,
+            name: trimmed,
+            color,
+            flair: lp.flair || 'initial'
+          });
+        }
+
+        state.allPlayers = players;
+        state.activePlayers = players.slice();
+        state.eliminatedHistory = [];
+        state.round = 1;
+        state.totalRounds = Math.max(1, players.length - 1);
+
+        els.lobbyScreen.classList.add('hidden');
+        els.championModal.classList.add('hidden');
+        els.roundResultsModal.classList.add('hidden');
+        els.raceScreen.classList.remove('hidden');
+
+        resizeCanvas();
+        startRound();
+      }
+
+      function startRound() {
+        clearCountdownTimers();
+        state.phase = 'countdown';
+
+        MusicEngine.setSlowMo(false);
+        MusicEngine.setTheme(state.trackId);
+        MusicEngine.setDucked(true);
+
+        els.finishEarlyBtn.classList.add('hidden');
+        els.mobileFastBtn.classList.add('hidden');
+        els.finishToast.classList.add('hidden');
+        els.slowMoBadge.classList.add('hidden');
+        els.slowMoGlow.style.opacity = '0';
+
+        const roundLabel = state.activePlayers.length === 2
+          ? 'Grand Finale!'
+          : `Round ${state.round} of ${state.totalRounds}`;
+        els.roundBadge.textContent = roundLabel;
+        els.mobileRoundBadge.textContent = roundLabel;
+        els.remainingCount.textContent = String(state.activePlayers.length);
+
+        const titles = TRACK_TITLES[state.trackId] || TRACK_TITLES.classic;
+        els.trackNameDisplay.textContent = titles[(state.round - 1) % titles.length];
+
+        renderEliminatedSidelines();
+        buildPhysicsWorldAndTrack();
+        updateLiveStandings();
+        updateMinimap();
+
+        if (!state.rafId) {
+          state.lastFrameTs = performance.now();
+          state.rafId = requestAnimationFrame(gameLoop);
+        }
+
+        // Animated 3 - 2 - 1 - GO! Countdown
+        els.countdownOverlay.classList.remove('hidden');
+        const steps = [
+          { delay: 0,    text: '3',   sub: 'Marbles Ready!', isGo: false },
+          { delay: 750,  text: '2',   sub: 'Take Your Marks...', isGo: false },
+          { delay: 1500, text: '1',   sub: 'Here We Go!', isGo: false },
+          { delay: 2250, text: 'GO!', sub: 'Roll, Marbles, Roll!', isGo: true }
+        ];
+
+        steps.forEach(s => {
+          const t = setTimeout(() => {
+            if (state.phase !== 'countdown') return;
+            els.countdownText.textContent = s.text;
+            els.countdownSub.textContent = s.sub;
+            els.countdownText.classList.remove('animate-pop');
+            void els.countdownText.offsetWidth;
+            els.countdownText.classList.add('animate-pop');
+            SoundFX.countdown(s.isGo);
+            if (s.isGo) {
+              releaseStartGate();
+              const hideT = setTimeout(() => {
+                els.countdownOverlay.classList.add('hidden');
+              }, 520);
+              state.countdownTimers.push(hideT);
+            }
+          }, s.delay);
+          state.countdownTimers.push(t);
+        });
+      }
+
+      function releaseStartGate() {
+        const { Composite, Body } = window.Matter;
+        if (state.startGateBody && state.engine) {
+          Composite.remove(state.engine.world, state.startGateBody);
+          state.startGateBody = null;
+        }
+        // Give each marble a tiny random horizontal nudge so every drop is uniquely chaotic
+        for (const m of state.marbles) {
+          Body.setVelocity(m.body, {
+            x: randRange(-1.4, 1.4),
+            y: randRange(0.4, 1.1)
+          });
+        }
+        state.phase = 'racing';
+        MusicEngine.setDucked(false);
+      }
+
+      function showFinishToast(msg) {
+        els.finishToast.textContent = msg;
+        els.finishToast.classList.remove('hidden');
+        if (state.toastTimeout) clearTimeout(state.toastTimeout);
+        state.toastTimeout = setTimeout(() => {
+          els.finishToast.classList.add('hidden');
+        }, 2600);
+      }
+
+      function resolveRound() {
+        if (state.roundResolved) return;
+        state.roundResolved = true;
+
+        els.finishEarlyBtn.classList.add('hidden');
+        els.mobileFastBtn.classList.add('hidden');
+        els.slowMoBadge.classList.add('hidden');
+        els.slowMoGlow.style.opacity = '0';
+        state.slowMoActive = false;
+        state.targetTimeScale = 1;
+        state.targetZoom = 1;
+
+        const sorted = state.marbles.slice().sort((a, b) => {
+          if (a.finished && b.finished) return a.finishRank - b.finishRank;
+          if (a.finished) return -1;
+          if (b.finished) return 1;
+          return b.body.position.y - a.body.position.y;
+        });
+
+        const eliminatedMarble = sorted[sorted.length - 1];
+        state.eliminatedHistory.unshift({
+          player: eliminatedMarble.player,
+          round: state.round
+        });
+        state.activePlayers = state.activePlayers.filter(p => p.id !== eliminatedMarble.player.id);
+
+        if (state.activePlayers.length <= 1) {
+          state.phase = 'champion';
+          const winner = state.activePlayers[0] || sorted[0].player;
+          showChampionModal(winner);
+        } else {
+          state.phase = 'roundResults';
+          showRoundResultsModal(sorted, eliminatedMarble);
+        }
+      }
+
+      function showRoundResultsModal(sortedMarbles, eliminatedMarble) {
+        MusicEngine.setSlowMo(false);
+        MusicEngine.setDucked(true);
+        SoundFX.roundOver();
+        els.resultsRoundPill.textContent = `Round ${state.round} Complete!`;
+
+        els.roundResultsList.innerHTML = sortedMarbles.map((m, idx) => {
+          const rank = idx + 1;
+          const isElim = m === eliminatedMarble;
+          const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+          const timeText = m.finished ? formatTime(m.finishTime) : 'DNF';
+          const flair = getPlayerFlair(m.player);
+          return `
+            <div class="flex items-center justify-between px-3.5 py-2.5 rounded-2xl border-2 ${
+              isElim
+                ? 'bg-rose-50 border-rose-200'
+                : rank === 1
+                ? 'bg-amber-50 border-amber-200'
+                : 'bg-slate-50 border-slate-100'
+            }">
+              <div class="flex items-center gap-3 min-w-0">
+                <span class="font-display font-bold text-lg w-7 text-center">${medal}</span>
+                <div class="marble-orb w-8 h-8 shrink-0 flex items-center justify-center font-display font-bold ${flair.isEmoji ? 'text-base leading-none' : 'text-sm'}"
+                     style="background:${m.player.color.hex}; color:${m.player.color.text}">
+                  ${escapeHtml(flair.text)}
+                </div>
+                <div class="min-w-0">
+                  <div class="font-bold text-slate-800 truncate">${escapeHtml(m.player.name)}</div>
+                  <div class="text-[11px] font-bold text-slate-400">${timeText}</div>
+                </div>
+              </div>
+              <span class="px-2.5 py-1 rounded-full text-xs font-extrabold uppercase tracking-wide ${
+                isElim
+                  ? 'bg-rose-500 text-white'
+                  : 'bg-emerald-100 text-emerald-700'
+              }">
+                ${isElim ? 'Eliminated' : 'Safe ✓'}
+              </span>
+            </div>
+          `;
+        }).join('');
+
+        els.eliminatedPlayerText.textContent = `${eliminatedMarble.player.name} (${eliminatedMarble.player.color.name})`;
+        els.nextRoundBtn.textContent = state.activePlayers.length === 2
+          ? 'Start Grand Finale! 🏆'
+          : `Start Round ${state.round + 1} 🚀`;
+
+        els.roundResultsModal.classList.remove('hidden');
+      }
+
+      function showChampionModal(winner) {
+        MusicEngine.setSlowMo(false);
+        MusicEngine.setDucked(true);
+        SoundFX.champion();
+        spawnConfettiBurst(CENTER_X, state.finishY - 80, 90);
+        recordTournamentResult(winner, state.allPlayers);
+
+        const winFlair = getPlayerFlair(winner);
+        els.championName.textContent = winner.name;
+        els.championMarble.style.background = winner.color.hex;
+        els.championMarble.style.color = winner.color.text;
+        els.championMarble.textContent = winFlair.text;
+        els.championMarble.className = `marble-orb w-12 h-12 flex items-center justify-center font-display font-bold ${winFlair.isEmoji ? 'text-2xl leading-none' : 'text-xl'}`;
+
+        // Final standings: 1st = winner, then reverse elimination order
+        const standings = [winner, ...state.eliminatedHistory.map(e => e.player)];
+        els.finalStandingsList.innerHTML = standings.map((p, idx) => {
+          const rank = idx + 1;
+          const medal = rank === 1 ? '🏆' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`;
+          const flair = getPlayerFlair(p);
+          return `
+            <div class="flex items-center justify-between px-3 py-2 rounded-2xl border-2 ${
+              rank === 1 ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-100'
+            }">
+              <div class="flex items-center gap-2.5">
+                <span class="font-display font-bold text-base w-6 text-center">${medal}</span>
+                <div class="marble-orb w-7 h-7 flex items-center justify-center font-display font-bold ${flair.isEmoji ? 'text-sm leading-none' : 'text-xs'}"
+                     style="background:${p.color.hex}; color:${p.color.text}">
+                  ${escapeHtml(flair.text)}
+                </div>
+                <span class="font-bold text-slate-800 text-sm">${escapeHtml(p.name)}</span>
+              </div>
+              <span class="text-xs font-extrabold text-slate-400">
+                ${rank === 1 ? 'Champion!' : `${rank}${rank === 2 ? 'nd' : rank === 3 ? 'rd' : 'th'} Place`}
+              </span>
+            </div>
+          `;
+        }).join('');
+
+        els.championModal.classList.remove('hidden');
+      }
+
+      function returnToLobby() {
+        clearCountdownTimers();
+        state.phase = 'lobby';
+        MusicEngine.setSlowMo(false);
+        MusicEngine.setDucked(false);
+        MusicEngine.setTheme('lobby');
+        els.roundResultsModal.classList.add('hidden');
+        els.championModal.classList.add('hidden');
+        els.raceScreen.classList.add('hidden');
+        els.lobbyScreen.classList.remove('hidden');
+        els.countdownOverlay.classList.add('hidden');
+      }
+
+      /* ===================================================================
+         9. LIVE HUD, SIDELINES & VERTICAL MINIMAP UPDATES
+      =================================================================== */
+      function renderEliminatedSidelines() {
+        if (state.eliminatedHistory.length === 0) {
+          els.eliminatedCard.classList.add('hidden');
+          return;
+        }
+        els.eliminatedCard.classList.remove('hidden');
+        els.eliminatedList.innerHTML = state.eliminatedHistory.map(entry => `
+          <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200 text-xs font-bold text-slate-600">
+            <span class="w-3.5 h-3.5 rounded-full inline-block" style="background:${entry.player.color.hex}"></span>
+            <span>${escapeHtml(entry.player.name)}</span>
+            <span class="text-slate-400">(R${entry.round})</span>
+          </div>
+        `).join('');
+      }
+
+      function updateLiveStandings() {
+        if (state.marbles.length === 0) return;
+
+        const sorted = state.marbles.slice().sort((a, b) => {
+          if (a.finished && b.finished) return a.finishRank - b.finishRank;
+          if (a.finished) return -1;
+          if (b.finished) return 1;
+          return b.body.position.y - a.body.position.y;
+        });
+
+        const total = sorted.length;
+        els.liveStandingsList.innerHTML = sorted.map((m, idx) => {
+          const rank = idx + 1;
+          const isDanger = rank === total && !m.finished;
+          const flair = getPlayerFlair(m.player);
+          const statusTag = m.finished
+            ? `<span class="text-xs font-extrabold text-emerald-600">${formatTime(m.finishTime)}</span>`
+            : isDanger
+            ? `<span class="text-[11px] font-extrabold text-rose-600">DANGER</span>`
+            : `<span class="text-xs font-bold text-slate-400">${Math.min(99, Math.max(0, Math.round((m.body.position.y / state.finishY) * 100)))}%</span>`;
+
+          return `
+            <div class="flex items-center justify-between px-2.5 py-2 rounded-2xl border-2 transition-colors ${
+              m.finished
+                ? 'bg-emerald-50/75 border-emerald-200'
+                : isDanger
+                ? 'bg-rose-50/75 border-rose-200'
+                : 'bg-slate-50/90 border-slate-100'
+            }">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <span class="font-display font-bold text-sm w-5 text-center text-slate-500">${rank}</span>
+                <div class="marble-orb w-7 h-7 shrink-0 flex items-center justify-center font-display font-bold ${flair.isEmoji ? 'text-sm leading-none' : 'text-xs'}"
+                     style="background:${m.player.color.hex}; color:${m.player.color.text}">
+                  ${escapeHtml(flair.text)}
+                </div>
+                <span class="font-bold text-slate-800 text-sm truncate">${escapeHtml(m.player.name)}</span>
+              </div>
+              ${statusTag}
+            </div>
+          `;
+        }).join('');
+      }
+
+      function renderMinimapPortals() {
+        if (!els.minimapPortals) return;
+        const markers = [];
+        for (const p of state.portals) {
+          const entryPct = clamp((p.entry.y / state.finishY) * 100, 2, 98);
+          const exitPct = clamp((p.exit.y / state.finishY) * 100, 2, 98);
+          markers.push(`
+            <div title="${p.label} Portal Entry"
+                 class="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-1.5 rounded-full border border-white shadow-sm"
+                 style="top: ${entryPct.toFixed(1)}%; background-color: ${p.color};"></div>
+            <div title="${p.label} Portal Exit"
+                 class="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-1 rounded-full opacity-75"
+                 style="top: ${exitPct.toFixed(1)}%; background-color: ${p.color};"></div>
+          `);
+        }
+        els.minimapPortals.innerHTML = markers.join('');
+      }
+
+      function updateMinimap() {
+        if (!els.minimapDots || state.marbles.length === 0) return;
+
+        let maxY = 0;
+        const dotsHtml = state.marbles.map(m => {
+          const y = m.finished ? state.finishY : m.body.position.y;
+          if (y > maxY) maxY = y;
+          const pct = clamp((y / state.finishY) * 100, 1, 99);
+          return `
+            <div title="${escapeHtml(m.player.name)}"
+                 class="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm"
+                 style="top: ${pct.toFixed(1)}%; background-color: ${m.player.color.hex};"></div>
+          `;
+        }).join('');
+
+        els.minimapDots.innerHTML = dotsHtml;
+
+        const leadPct = clamp(Math.round((maxY / state.finishY) * 100), 0, 100);
+        if (els.minimapPct) els.minimapPct.textContent = `${leadPct}%`;
+        if (els.raceProgressBar) els.raceProgressBar.style.width = `${leadPct}%`;
+
+        const remainMeters = Math.max(0, Math.round((state.finishY - maxY) / 10));
+        if (els.minimapDist) els.minimapDist.textContent = `${remainMeters}m`;
+      }
+
+      /* ===================================================================
+         10. VISUAL FX, SLOW-MO PHOTO FINISH & PHYSICS SIMULATION STEP
+      =================================================================== */
+      function spawnSparkles(x, y, color, count = 8) {
+        for (let i = 0; i < count; i++) {
+          const ang = Math.random() * Math.PI * 2;
+          const spd = randRange(70, 210);
+          state.particles.push({
+            x, y,
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd - 40,
+            r: randRange(2.5, 5.5),
+            color: i % 3 === 0 ? '#FFFFFF' : color,
+            life: 1.0
+          });
+        }
+      }
+
+      function spawnConfettiBurst(x, y, count = 40) {
+        const colors = ['#EF4444', '#3B82F6', '#FACC15', '#22C55E', '#A855F7', '#F97316', '#EC4899', '#06B6D4'];
+        for (let i = 0; i < count; i++) {
+          const ang = randRange(-Math.PI * 0.9, -Math.PI * 0.1);
+          const spd = randRange(160, 440);
+          state.confetti.push({
+            x: x + randRange(-40, 40),
+            y: y + randRange(-20, 10),
+            vx: Math.cos(ang) * spd,
+            vy: Math.sin(ang) * spd - 80,
+            w: randRange(6, 11),
+            h: randRange(4, 8),
+            rot: randRange(0, Math.PI * 2),
+            vrot: randRange(-10, 10),
+            color: colors[i % colors.length],
+            life: randRange(1.4, 2.6)
+          });
+        }
+      }
+
+      function evaluateSlowMoPhotoFinish() {
+        if (state.phase !== 'racing') {
+          state.targetTimeScale = 1;
+          state.targetZoom = 1;
+          return;
+        }
+
+        const active = state.marbles.filter(m => !m.finished);
+        const zoneTop = state.finishY - 420;
+        let shouldSlow = false;
+        let badgeLabel = '⚡ SLOW-MO PHOTO FINISH! ⚡';
+
+        // 1. Battle for 1st Place
+        if (state.finishedCount === 0 && active.length >= 2) {
+          const byY = active.slice().sort((a, b) => b.body.position.y - a.body.position.y);
+          const lead = byY[0].body.position.y;
+          const second = byY[1].body.position.y;
+          if (lead >= zoneTop && (lead - second) <= 150) {
+            shouldSlow = true;
+            badgeLabel = '⚡ PHOTO FINISH FOR 1ST! ⚡';
+            if (!state.slowMoTriggeredForLead) {
+              state.slowMoTriggeredForLead = true;
+              SoundFX.slowMo();
+            }
+          }
+        }
+
+        // 2. Battle to Avoid Elimination
+        if (!shouldSlow && active.length === 2 && state.marbles.length >= 3) {
+          const byY = active.slice().sort((a, b) => b.body.position.y - a.body.position.y);
+          const ahead = byY[0].body.position.y;
+          const behind = byY[1].body.position.y;
+          if (ahead >= zoneTop && (ahead - behind) <= 170) {
+            shouldSlow = true;
+            badgeLabel = '🔥 ELIMINATION PHOTO FINISH! 🔥';
+            if (!state.slowMoTriggeredForElim) {
+              state.slowMoTriggeredForElim = true;
+              SoundFX.slowMo();
+            }
+          }
+        }
+
+        state.slowMoActive = shouldSlow;
+        state.targetTimeScale = shouldSlow ? 0.25 : 1.0;
+        state.targetZoom = shouldSlow ? 1.12 : 1.0;
+        MusicEngine.setSlowMo(shouldSlow);
+
+        if (shouldSlow) {
+          els.slowMoBadge.textContent = badgeLabel;
+          els.slowMoBadge.classList.remove('hidden');
+          els.slowMoGlow.style.opacity = '1';
+        } else {
+          els.slowMoBadge.classList.add('hidden');
+          els.slowMoGlow.style.opacity = '0';
+        }
+      }
+
+      function stepPhysicsFixed() {
+        const { Engine, Body } = window.Matter;
+        const dtSec = FIXED_DT_MS / 1000;
+
+        // Rotate all spinners smoothly
+        for (const sp of state.spinners) {
+          sp.angle += sp.angularSpeed;
+          Body.setAngle(sp.body, sp.angle);
+        }
+
+        Engine.update(state.engine, FIXED_DT_MS);
+
+        if (state.phase !== 'racing') return;
+
+        state.raceElapsed += dtSec;
+
+        for (const m of state.marbles) {
+          if (m.portalCooldown > 0) m.portalCooldown = Math.max(0, m.portalCooldown - dtSec);
+          if (m.boostTrail > 0) m.boostTrail = Math.max(0, m.boostTrail - dtSec);
+
+          const pos = m.body.position;
+          const vel = m.body.velocity;
+
+          // Subtle motion trail for turbo-boosted marbles
+          if (m.boostTrail > 0) {
+            m.trail.push({ x: pos.x, y: pos.y, alpha: 0.75 });
+            if (m.trail.length > 10) m.trail.shift();
+          } else if (m.trail.length > 0) {
+            m.trail.shift();
+          }
+
+          if (m.finished) continue;
+
+          // Check Teleporter Portals
+          if (m.portalCooldown <= 0) {
+            for (const p of state.portals) {
+              const dist = Math.hypot(pos.x - p.entry.x, pos.y - p.entry.y);
+              if (dist <= p.entry.r + MARBLE_R * 0.45) {
+                spawnSparkles(pos.x, pos.y, p.color, 14);
+                Body.setPosition(m.body, {
+                  x: p.exit.x + randRange(-6, 6),
+                  y: p.exit.y + 8
+                });
+                Body.setVelocity(m.body, {
+                  x: p.boostX + randRange(-1.2, 1.2),
+                  y: Math.max(4.5, Math.min(vel.y, 8.5))
+                });
+                m.portalCooldown = 0.85;
+                p.pulse = 1;
+                spawnSparkles(p.exit.x, p.exit.y, p.color, 16);
+                SoundFX.portal();
+                break;
+              }
+            }
+          }
+
+          // Check Turbo Speed Boost Pads
+          for (const pad of state.boostPads) {
+            const dx = pos.x - pad.x;
+            const dy = pos.y - pad.y;
+            const cos = Math.cos(-pad.angle);
+            const sin = Math.sin(-pad.angle);
+            const lx = dx * cos - dy * sin;
+            const ly = dx * sin + dy * cos;
+
+            if (Math.abs(lx) <= pad.width / 2 + MARBLE_R * 0.35 &&
+                Math.abs(ly) <= pad.height / 2 + MARBLE_R * 0.55) {
+              Body.setVelocity(m.body, {
+                x: vel.x * 0.45 + pad.forceX * 0.85,
+                y: Math.max(vel.y * 0.5, 0) + pad.forceY * 0.85
+              });
+              if (m.boostTrail <= 0.15) {
+                SoundFX.boost();
+                spawnSparkles(pos.x, pos.y, '#FACC15', 6);
+              }
+              m.boostTrail = 0.65;
+              pad.flash = 1;
+            }
+          }
+
+          // Check Finish Line Crossing
+          if (pos.y >= state.finishY) {
+            m.finished = true;
+            state.finishedCount += 1;
+            m.finishRank = state.finishedCount;
+            m.finishTime = state.raceElapsed;
+
+            SoundFX.finishMarble(m.finishRank);
+            spawnConfettiBurst(pos.x, state.finishY - 12, m.finishRank === 1 ? 48 : 18);
+
+            if (m.finishRank === 1) {
+              showFinishToast(`🥇 ${m.player.name} finishes 1st! (${formatTime(m.finishTime)})`);
+            } else if (m.finishRank === state.marbles.length - 1) {
+              state.finishEarlyReady = true;
+              els.finishEarlyBtn.classList.remove('hidden');
+              els.mobileFastBtn.classList.remove('hidden');
+            }
+
+            updateLiveStandings();
+
+            if (state.finishedCount >= state.marbles.length) {
+              setTimeout(() => {
+                if (state.phase === 'racing') resolveRound();
+              }, 950);
+            }
+          }
+        }
+      }
+
+      /* ===================================================================
+         11. CAMERA TRACKING & CANVAS RENDERER
+      =================================================================== */
+      function resizeCanvas() {
+        const rect = els.reelContainer.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        els.raceCanvas.width = Math.round(rect.width * dpr);
+        els.raceCanvas.height = Math.round(rect.height * dpr);
+      }
+
+      function updateCamera(dtSec) {
+        if (state.marbles.length === 0) return;
+
+        const rect = els.reelContainer.getBoundingClientRect();
+        const scale = (rect.width || 400) / WORLD_W;
+        const viewWorldH = (rect.height || 620) / scale;
+
+        let targetY = 0;
+        const active = state.marbles.filter(m => !m.finished);
+        const pool = active.length > 0 ? active : state.marbles;
+
+        if (state.slowMoActive && active.length >= 2) {
+          const byY = active.slice().sort((a, b) => b.body.position.y - a.body.position.y);
+          targetY = (byY[0].body.position.y + byY[1].body.position.y) * 0.5 - viewWorldH * 0.48;
+        } else if (state.cameraMode === 'leader') {
+          const leadY = Math.max(...pool.map(m => m.body.position.y));
+          targetY = leadY - viewWorldH * 0.42;
+        } else if (state.cameraMode === 'last') {
+          const lastY = Math.min(...pool.map(m => m.body.position.y));
+          targetY = lastY - viewWorldH * 0.48;
+        } else {
+          const avgY = pool.reduce((sum, m) => sum + m.body.position.y, 0) / pool.length;
+          targetY = avgY - viewWorldH * 0.45;
+        }
+
+        const maxCamY = Math.max(0, state.worldHeight - viewWorldH);
+        targetY = clamp(targetY, 0, maxCamY);
+
+        const smooth = 1 - Math.exp(-6.5 * dtSec);
+        state.cameraY += (targetY - state.cameraY) * smooth;
+        state.cameraZoom += (state.targetZoom - state.cameraZoom) * (1 - Math.exp(-5 * dtSec));
+
+        // Update current Stage Zone pill
+        const focusY = state.cameraY + viewWorldH * 0.35;
+        let currentZone = state.stageZones[0];
+        for (const z of state.stageZones) {
+          if (focusY >= z.y) currentZone = z;
+        }
+        if (currentZone && els.stagePill.textContent !== currentZone.label) {
+          els.stagePill.textContent = currentZone.label;
+        }
+      }
+
+      function renderScene() {
+        const w = els.raceCanvas.width;
+        const h = els.raceCanvas.height;
+        if (w <= 0 || h <= 0) return;
+
+        const baseScale = w / WORLD_W;
+        const viewWorldH = h / baseScale;
+
+        ctx.save();
+        ctx.fillStyle = '#FFFBEB';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.translate(w / 2, h / 2);
+        ctx.scale(baseScale * state.cameraZoom, baseScale * state.cameraZoom);
+        ctx.translate(-WORLD_W / 2, -viewWorldH / 2 - state.cameraY);
+
+        const visTop = state.cameraY - 160;
+        const visBot = state.cameraY + viewWorldH + 160;
+
+        // Subtle pastel polka-dot track backdrop
+        ctx.fillStyle = 'rgba(147, 197, 253, 0.22)';
+        const startDotY = Math.floor(Math.max(0, visTop) / 70) * 70;
+        for (let dy = startDotY; dy < visBot; dy += 70) {
+          for (let dx = INNER_L + 35; dx < INNER_R; dx += 70) {
+            ctx.beginPath();
+            ctx.arc(dx + ((dy / 70) % 2 === 0 ? 0 : 35), dy, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+
+        // Painted Stage Zone Banners
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        for (const z of state.stageZones) {
+          if (z.y < visTop - 100 || z.y > visBot + 100) continue;
+          ctx.save();
+          ctx.globalAlpha = 0.16;
+          ctx.fillStyle = z.color;
+          ctx.fillRect(INNER_L + 16, z.y - 18, INNER_W - 32, 36);
+          ctx.globalAlpha = 0.45;
+          ctx.font = '700 22px Fredoka, sans-serif';
+          ctx.fillStyle = z.color;
+          ctx.fillText(z.banner, CENTER_X, z.y);
+          ctx.restore();
+        }
+
+        // Painted Left vs. Right Lane Labels (for Split-Lane Speedway)
+        for (const lbl of state.laneLabels) {
+          if (lbl.y < visTop - 80 || lbl.y > visBot + 80) continue;
+          ctx.save();
+          ctx.globalAlpha = 0.14;
+          ctx.fillStyle = lbl.color;
+          roundRect(ctx, lbl.x - 105, lbl.y - 14, 210, 28, 12);
+          ctx.fill();
+          ctx.globalAlpha = 0.72;
+          ctx.font = '700 14px Fredoka, sans-serif';
+          ctx.fillStyle = lbl.color;
+          ctx.fillText(lbl.text, lbl.x, lbl.y + 1);
+          ctx.restore();
+        }
+
+        // Start Gate Bar (while closed)
+        if (state.startGateBody) {
+          ctx.fillStyle = '#EF4444';
+          ctx.fillRect(INNER_L, 105, INNER_W, 14);
+          ctx.fillStyle = '#FFFFFF';
+          for (let sx = INNER_L + 10; sx < INNER_R - 10; sx += 36) {
+            ctx.fillRect(sx, 107, 16, 10);
+          }
+        }
+
+        // Checkered Finish Line
+        if (state.finishY >= visTop - 60 && state.finishY <= visBot + 60) {
+          const sq = 20;
+          for (let row = 0; row < 2; row++) {
+            for (let col = 0; col < INNER_W / sq; col++) {
+              ctx.fillStyle = (row + col) % 2 === 0 ? '#1E293B' : '#FFFFFF';
+              ctx.fillRect(INNER_L + col * sq, state.finishY - 20 + row * sq, sq, sq);
+            }
+          }
+          ctx.font = '700 26px Fredoka, sans-serif';
+          ctx.fillStyle = '#16A34A';
+          ctx.fillText('🏁 FINISH LINE 🏁', CENTER_X, state.finishY - 38);
+        }
+
+        // Draw Turbo Speed Boost Pads
+        for (const pad of state.boostPads) {
+          if (pad.y < visTop - 100 || pad.y > visBot + 100) continue;
+          ctx.save();
+          ctx.translate(pad.x, pad.y);
+          ctx.rotate(pad.angle);
+
+          ctx.fillStyle = pad.flash > 0.2 ? '#FEF08A' : pad.color;
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 3;
+          roundRect(ctx, -pad.width / 2, -pad.height / 2, pad.width, pad.height, 10);
+          ctx.fill();
+          ctx.stroke();
+
+          const shift = (state.animTime * 90) % 24;
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 3;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          for (let cx = -pad.width / 2 + 12 + shift; cx < pad.width / 2 - 10; cx += 24) {
+            ctx.beginPath();
+            ctx.moveTo(cx - 6, -6);
+            ctx.lineTo(cx + 2, 0);
+            ctx.lineTo(cx - 6, 6);
+            ctx.stroke();
+          }
+
+          ctx.restore();
+        }
+
+        // Draw Teleporter Portals
+        for (const p of state.portals) {
+          const drawRing = (pt, isEntry) => {
+            if (pt.y < visTop - 80 || pt.y > visBot + 80) return;
+            ctx.save();
+            ctx.translate(pt.x, pt.y);
+
+            const grad = ctx.createRadialGradient(0, 0, 4, 0, 0, pt.r + 8);
+            grad.addColorStop(0, '#FFFFFF');
+            grad.addColorStop(0.55, p.light);
+            grad.addColorStop(1, 'rgba(255,255,255,0)');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(0, 0, pt.r + 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.rotate(state.animTime * (isEntry ? 3.8 : -3.8));
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = 5;
+            ctx.setLineDash([12, 8]);
+            ctx.beginPath();
+            ctx.arc(0, 0, pt.r - 3, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = 0.82;
+            ctx.beginPath();
+            ctx.arc(0, 0, pt.r * 0.45, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+
+            ctx.font = '800 11px Nunito, sans-serif';
+            ctx.fillStyle = p.color;
+            ctx.fillText(isEntry ? 'WARP IN' : 'WARP OUT', pt.x, pt.y + pt.r + 13);
+          };
+          drawRing(p.entry, true);
+          drawRing(p.exit, false);
+        }
+
+        // Draw Sloped Ramps & Walls
+        for (const r of state.ramps) {
+          if (r.cy < visTop - 420 || r.cy > visBot + 420) continue;
+          ctx.save();
+          ctx.translate(r.cx, r.cy);
+          ctx.rotate(r.angle);
+          ctx.fillStyle = r.color;
+          ctx.strokeStyle = r.border;
+          ctx.lineWidth = 3;
+          roundRect(ctx, -r.len / 2, -r.thickness / 2, r.len, r.thickness, 7);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = 'rgba(255,255,255,0.35)';
+          roundRect(ctx, -r.len / 2 + 6, -r.thickness / 2 + 2, r.len - 12, 4, 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Draw Diamonds
+        for (const d of state.diamonds) {
+          if (d.y < visTop - 100 || d.y > visBot + 100) continue;
+          ctx.save();
+          ctx.translate(d.x, d.y);
+          ctx.rotate(Math.PI / 4);
+          ctx.fillStyle = d.color;
+          ctx.strokeStyle = d.border;
+          ctx.lineWidth = 3.5;
+          roundRect(ctx, -d.size / 2, -d.size / 2, d.size, d.size, 8);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Draw Spinning Windmills & Cross-Wheels
+        for (const sp of state.spinners) {
+          if (sp.y < visTop - sp.radius - 40 || sp.y > visBot + sp.radius + 40) continue;
+          ctx.save();
+          ctx.translate(sp.x, sp.y);
+          ctx.rotate(sp.angle);
+          ctx.fillStyle = sp.color;
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 2.5;
+
+          if (sp.blades === 2 || sp.blades === 4) {
+            const bars = sp.blades / 2;
+            for (let i = 0; i < bars; i++) {
+              ctx.save();
+              ctx.rotate((i * Math.PI) / bars);
+              roundRect(ctx, -sp.radius, -sp.thick / 2, sp.radius * 2, sp.thick, sp.thick / 2);
+              ctx.fill();
+              ctx.stroke();
+              ctx.restore();
+            }
+          } else {
+            for (let i = 0; i < sp.blades; i++) {
+              ctx.save();
+              ctx.rotate((i * Math.PI * 2) / sp.blades);
+              roundRect(ctx, 0, -sp.thick / 2, sp.radius, sp.thick, sp.thick / 2);
+              ctx.fill();
+              ctx.stroke();
+              ctx.restore();
+            }
+          }
+
+          ctx.fillStyle = '#FFFFFF';
+          ctx.beginPath();
+          ctx.arc(0, 0, sp.thick * 0.65, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = sp.color;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        // Draw Plinko Pegs
+        for (const peg of state.pegs) {
+          if (peg.y < visTop - 30 || peg.y > visBot + 30) continue;
+          const r = peg.radius + peg.flash * 3;
+          ctx.beginPath();
+          ctx.arc(peg.x, peg.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = peg.flash > 0.2 ? '#FFFFFF' : peg.color;
+          ctx.fill();
+          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.stroke();
+        }
+
+        // Draw Pinball Bumpers
+        for (const b of state.bumpers) {
+          if (b.y < visTop - 50 || b.y > visBot + 50) continue;
+          const r = b.radius + b.pulse * 6;
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = b.color;
+          ctx.fill();
+          ctx.lineWidth = 4;
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, r * 0.55, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,255,255,0.38)';
+          ctx.fill();
+        }
+
+        // Draw Glossy Rolling Marbles
+        for (const m of state.marbles) {
+          const pos = m.body.position;
+          const c = m.player.color;
+
+          // Turbo speed trail
+          if (m.trail.length > 1) {
+            for (let i = 0; i < m.trail.length; i++) {
+              const t = m.trail[i];
+              ctx.beginPath();
+              ctx.arc(t.x, t.y, MARBLE_R * (0.45 + (i / m.trail.length) * 0.45), 0, Math.PI * 2);
+              ctx.fillStyle = `rgba(250, 204, 21, ${(i / m.trail.length) * 0.45})`;
+              ctx.fill();
+            }
+          }
+
+          // Drop shadow
+          ctx.beginPath();
+          ctx.arc(pos.x + 2, pos.y + 4, MARBLE_R, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.18)';
+          ctx.fill();
+
+          // Glossy 3D sphere gradient
+          const grad = ctx.createRadialGradient(
+            pos.x - MARBLE_R * 0.32, pos.y - MARBLE_R * 0.35, MARBLE_R * 0.12,
+            pos.x, pos.y, MARBLE_R
+          );
+          grad.addColorStop(0, c.light);
+          grad.addColorStop(0.55, c.hex);
+          grad.addColorStop(1, c.dark);
+
+          ctx.beginPath();
+          ctx.arc(pos.x, pos.y, MARBLE_R, 0, Math.PI * 2);
+          ctx.fillStyle = grad;
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+          ctx.stroke();
+
+          // Rotating rolling stripe & custom flair
+          const flair = getPlayerFlair(m.player);
+          ctx.save();
+          ctx.translate(pos.x, pos.y);
+          ctx.rotate(m.body.angle);
+
+          ctx.strokeStyle = 'rgba(255,255,255,0.32)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(0, 0, MARBLE_R * 0.72, -0.7, 0.7);
+          ctx.stroke();
+
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          if (flair.isEmoji) {
+            ctx.font = '17px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.28)';
+            ctx.shadowBlur = 3;
+            ctx.fillText(flair.text, 0, 1);
+            ctx.shadowBlur = 0;
+          } else {
+            ctx.font = '700 15px Fredoka, sans-serif';
+            ctx.fillStyle = c.text;
+            ctx.fillText(flair.text, 0, 1);
+          }
+          ctx.restore();
+
+          // Crisp specular top highlight
+          ctx.save();
+          ctx.translate(pos.x - MARBLE_R * 0.32, pos.y - MARBLE_R * 0.34);
+          ctx.rotate(-0.55);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 5.5, 3.2, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+
+          // Floating compact name tag above marble
+          ctx.font = '800 11px Nunito, sans-serif';
+          ctx.fillStyle = 'rgba(30, 41, 59, 0.85)';
+          ctx.textAlign = 'center';
+          ctx.fillText(m.player.name, pos.x, pos.y - MARBLE_R - 8);
+        }
+
+        // Draw Sparkle Particles
+        for (const pt of state.particles) {
+          ctx.save();
+          ctx.globalAlpha = clamp(pt.life, 0, 1);
+          ctx.fillStyle = pt.color;
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, pt.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Draw Confetti
+        for (const cf of state.confetti) {
+          ctx.save();
+          ctx.globalAlpha = clamp(cf.life, 0, 1);
+          ctx.translate(cf.x, cf.y);
+          ctx.rotate(cf.rot);
+          ctx.fillStyle = cf.color;
+          ctx.fillRect(-cf.w / 2, -cf.h / 2, cf.w, cf.h);
+          ctx.restore();
+        }
+
+        // Outer Crisp Toybox Track Rails
+        ctx.fillStyle = '#38BDF8';
+        ctx.fillRect(0, visTop - 100, RAIL_W, viewWorldH + 400);
+        ctx.fillRect(INNER_R, visTop - 100, RAIL_W, viewWorldH + 400);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(RAIL_W - 4, visTop - 100, 4, viewWorldH + 400);
+        ctx.fillRect(INNER_R, visTop - 100, 4, viewWorldH + 400);
+
+        ctx.restore();
+      }
+
+      function roundRect(c, x, y, w, h, r) {
+        const radius = Math.min(r, w / 2, h / 2);
+        c.beginPath();
+        c.moveTo(x + radius, y);
+        c.arcTo(x + w, y, x + w, y + h, radius);
+        c.arcTo(x + w, y + h, x, y + h, radius);
+        c.arcTo(x, y + h, x, y, radius);
+        c.arcTo(x, y, x + w, y, radius);
+        c.closePath();
+      }
+
+      /* ===================================================================
+         12. MAIN ANIMATION LOOP
+      =================================================================== */
+      function gameLoop(ts) {
+        const rawDtMs = Math.min(50, Math.max(0, ts - state.lastFrameTs));
+        state.lastFrameTs = ts;
+        const realDtSec = rawDtMs / 1000;
+        state.animTime += realDtSec;
+
+        if (state.phase === 'countdown' || state.phase === 'racing' || state.phase === 'roundResults' || state.phase === 'champion') {
+          evaluateSlowMoPhotoFinish();
+
+          state.timeScale += (state.targetTimeScale - state.timeScale) * (1 - Math.exp(-8 * realDtSec));
+
+          state.physicsAccumMs += rawDtMs * state.timeScale;
+          let subSteps = 0;
+          while (state.physicsAccumMs >= FIXED_DT_MS && subSteps < 10) {
+            stepPhysicsFixed();
+            state.physicsAccumMs -= FIXED_DT_MS;
+            subSteps++;
+          }
+
+          // Decay obstacle visual flashes
+          for (const p of state.pegs) if (p.flash > 0) p.flash = Math.max(0, p.flash - realDtSec * 4);
+          for (const b of state.bumpers) if (b.pulse > 0) b.pulse = Math.max(0, b.pulse - realDtSec * 4.5);
+          for (const pad of state.boostPads) if (pad.flash > 0) pad.flash = Math.max(0, pad.flash - realDtSec * 3.5);
+
+          // Update particles & confetti
+          for (let i = state.particles.length - 1; i >= 0; i--) {
+            const pt = state.particles[i];
+            pt.x += pt.vx * realDtSec;
+            pt.y += pt.vy * realDtSec;
+            pt.vy += 320 * realDtSec;
+            pt.life -= realDtSec * 1.9;
+            if (pt.life <= 0) state.particles.splice(i, 1);
+          }
+
+          for (let i = state.confetti.length - 1; i >= 0; i--) {
+            const cf = state.confetti[i];
+            cf.x += cf.vx * realDtSec;
+            cf.y += cf.vy * realDtSec;
+            cf.vy += 420 * realDtSec;
+            cf.rot += cf.vrot * realDtSec;
+            cf.life -= realDtSec * 0.9;
+            if (cf.life <= 0) state.confetti.splice(i, 1);
+          }
+
+          updateCamera(realDtSec);
+          renderScene();
+
+          // Refresh HUD & Minimap at ~12Hz
+          state.hudTimer += realDtSec;
+          if (state.hudTimer >= 0.08) {
+            state.hudTimer = 0;
+            updateLiveStandings();
+            updateMinimap();
+          }
+        }
+
+        state.rafId = requestAnimationFrame(gameLoop);
+      }
+
+      /* ===================================================================
+         13. EVENT LISTENERS & INITIALIZATION
+      =================================================================== */
+      // Unlock Web Audio & fade in Lobby music on first family tap/keypress
+      function handleFirstGesture() {
+        MusicEngine.unlock();
+        window.removeEventListener('pointerdown', handleFirstGesture);
+        window.removeEventListener('keydown', handleFirstGesture);
+      }
+      window.addEventListener('pointerdown', handleFirstGesture, { passive: true });
+      window.addEventListener('keydown', handleFirstGesture, { passive: true });
+
+      els.musicToggleBtn.addEventListener('click', () => {
+        const isOn = MusicEngine.toggle();
+        els.musicIcon.textContent = isOn ? '🎵' : '🔇';
+        els.musicLabel.textContent = isOn ? 'Music On' : 'Music Off';
+        els.musicToggleBtn.classList.toggle('opacity-70', !isOn);
+      });
+
+      els.soundToggleBtn.addEventListener('click', () => {
+        const muted = SoundFX.toggleMute();
+        els.soundIcon.textContent = muted ? '🔇' : '🔊';
+        els.soundLabel.textContent = muted ? 'SFX Off' : 'SFX On';
+        els.soundToggleBtn.classList.toggle('opacity-70', muted);
+      });
+
+      els.startTournamentBtn.addEventListener('click', startTournament);
+
+      els.nextRoundBtn.addEventListener('click', () => {
+        SoundFX.click();
+        els.roundResultsModal.classList.add('hidden');
+        state.round += 1;
+        startRound();
+      });
+
+      els.finishEarlyBtn.addEventListener('click', () => {
+        SoundFX.click();
+        resolveRound();
+      });
+
+      els.mobileFastBtn.addEventListener('click', () => {
+        SoundFX.click();
+        resolveRound();
+      });
+
+      els.backToLobbyBtn.addEventListener('click', () => {
+        SoundFX.click();
+        returnToLobby();
+      });
+
+      els.mobileBackBtn.addEventListener('click', () => {
+        SoundFX.click();
+        returnToLobby();
+      });
+
+      els.playAgainSameBtn.addEventListener('click', () => {
+        SoundFX.click();
+        startTournament();
+      });
+
+      els.changePlayersBtn.addEventListener('click', () => {
+        SoundFX.click();
+        returnToLobby();
+      });
+
+      // Family Game Night Leaderboard Modal & Reset Buttons
+      els.leaderboardHeaderBtn.addEventListener('click', () => {
+        SoundFX.click();
+        updateAllLeaderboardUIs();
+        clearResetConfirmButtons();
+        els.leaderboardModal.classList.remove('hidden');
+      });
+
+      els.closeLeaderboardModalBtn.addEventListener('click', () => {
+        SoundFX.click();
+        clearResetConfirmButtons();
+        els.leaderboardModal.classList.add('hidden');
+      });
+
+      els.closeLeaderboardDoneBtn.addEventListener('click', () => {
+        SoundFX.click();
+        clearResetConfirmButtons();
+        els.leaderboardModal.classList.add('hidden');
+      });
+
+      els.lobbyResetLeaderboardBtn.addEventListener('click', () => handleResetLeaderboardClick('lobby'));
+      els.modalResetLeaderboardBtn.addEventListener('click', () => handleResetLeaderboardClick('modal'));
+
+      // Camera mode toggle buttons
+      els.cameraModeBtns.querySelectorAll('button.cam-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          SoundFX.click();
+          state.cameraMode = btn.dataset.cam;
+          els.cameraModeBtns.querySelectorAll('button.cam-btn').forEach(b => {
+            const active = b.dataset.cam === state.cameraMode;
+            b.className = `cam-btn toy-btn flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+              active ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:bg-sky-50'
+            }`;
+          });
+        });
+      });
+
+      window.addEventListener('resize', () => {
+        if (state.phase !== 'lobby') {
+          resizeCanvas();
+        }
+      });
+
+      // Initialize Lobby on Load
+      window.addEventListener('load', () => {
+        loadLeaderboard();
+        ensureUniqueLobbyColors();
+        renderPlayerCountButtons();
+        renderTrackPicker();
+        renderPlayerCards();
+        updateAllLeaderboardUIs();
+      });
+    })();
+  </script>
+</body>
+</html>
