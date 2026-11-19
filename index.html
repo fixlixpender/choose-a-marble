@@ -822,14 +822,11 @@
          3B. 4-THEME SYNTHESIZED LOOPING SOUNDTRACK ENGINE
       =================================================================== */
       const MusicEngine = (() => {
-        // Equal-temperament note frequency helper (e.g. midi 60 = C4)
         function midiToHz(midi) {
           return 440 * Math.pow(2, (midi - 69) / 12);
         }
 
-        // 4 cheerful, distinct 32-step (2-bar 16th-note or 4-bar 8th-note) looping themes
         const THEMES = {
-          // Main Menu / Lobby: Cozy Toybox Groove (warm marimba & bells, C major)
           lobby: {
             bpm: 104,
             steps: 32,
@@ -865,7 +862,6 @@
             ]
           },
 
-          // Track 1 (Classic Toybox Mix): Sunny Carnival Bounce (bright xylophone, F major)
           classic: {
             bpm: 128,
             steps: 32,
@@ -901,7 +897,6 @@
             ]
           },
 
-          // Track 2 (Split-Lane Speedway): Turbo Kart Dash (energetic arcade synth, G major)
           splitlane: {
             bpm: 146,
             steps: 32,
@@ -937,7 +932,6 @@
             ]
           },
 
-          // Track 3 (Giant Marble Slide): Rolling Cascade Rhythm (flowing wooden arpeggios, D major)
           giantslide: {
             bpm: 122,
             steps: 32,
@@ -1011,7 +1005,6 @@
           osc.type = wave;
           osc.frequency.setValueAtTime(freq, startTime);
 
-          // Gentle low-pass filter on bright waveforms so kids' ears stay happy
           let outputNode = osc;
           if (wave === 'sawtooth' || wave === 'square') {
             const filter = ctx.createBiquadFilter();
@@ -1061,7 +1054,6 @@
             gain.gain.setValueAtTime(0.055, startTime);
             gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.04);
           } else {
-            // Soft snare / woodblock snap
             filter.type = 'bandpass';
             filter.frequency.setValueAtTime(1900, startTime);
             gain.gain.setValueAtTime(0.11, startTime);
@@ -1081,7 +1073,6 @@
           const dest = ensureMasterGain(ctx);
           if (!dest) return;
 
-          // Subtle pitch drop during slow-mo photo finish for dramatic reel feel
           const pitchShift = slowMo ? -2 : 0;
 
           const leadMidi = theme.lead[step];
@@ -1113,9 +1104,8 @@
           if (!ctx || ctx.state !== 'running') return;
           const theme = THEMES[currentThemeId] || THEMES.lobby;
 
-          // Look ahead 120ms for rock-solid musical timing
           const effectiveBpm = slowMo ? theme.bpm * 0.72 : theme.bpm;
-          const stepDur = (60 / effectiveBpm) / 2; // 8th-note steps
+          const stepDur = (60 / effectiveBpm) / 2;
 
           if (nextNoteTime < ctx.currentTime - 0.15) {
             nextNoteTime = ctx.currentTime + 0.04;
@@ -1333,7 +1323,7 @@
         // Family Game Night Session Leaderboard
         leaderboard: {
           gamesPlayed: 0,
-          players: {} // key (lowercase name) -> { name, wins, games, colorHex, colorText, flair }
+          players: {}
         },
         resetConfirmTimer: { lobby: null, modal: null },
         resetConfirmPending: { lobby: false, modal: false }
@@ -1442,7 +1432,6 @@
         const games = state.leaderboard.gamesPlayed;
         const gamesText = games === 1 ? '1 tournament played this sitting' : `${games} tournaments played this sitting`;
 
-        // Header shortcut button
         els.headerGamesCount.textContent = String(games);
         if (games > 0) {
           els.leaderboardHeaderBtn.classList.remove('hidden');
@@ -1450,7 +1439,6 @@
           els.leaderboardHeaderBtn.classList.add('hidden');
         }
 
-        // Lobby Leaderboard Card
         if (games > 0 && entries.length > 0) {
           els.lobbyLeaderboardCard.classList.remove('hidden');
           els.lobbyLeaderboardSubtitle.textContent = gamesText;
@@ -1459,13 +1447,11 @@
           els.lobbyLeaderboardCard.classList.add('hidden');
         }
 
-        // Modal Leaderboard
         els.modalLeaderboardSubtitle.textContent = gamesText;
         els.modalLeaderboardList.innerHTML = entries.length > 0
           ? entries.map((e, i) => renderLeaderboardRow(e, i, false)).join('')
           : `<div class="text-center py-6 text-sm font-bold text-slate-400">Finish a tournament to start the family scoreboard!</div>`;
 
-        // Grand Champion Modal Summary
         els.championGamesPill.textContent = `Game #${games}`;
         els.championLeaderboardList.innerHTML = entries.slice(0, 5).map((e, i) => renderLeaderboardRow(e, i, true)).join('');
       }
@@ -1496,7 +1482,6 @@
           return;
         }
 
-        // Confirmed reset
         state.leaderboard = { gamesPlayed: 0, players: {} };
         saveLeaderboard();
         clearResetConfirmButtons();
@@ -1592,21 +1577,28 @@
 
           const swatchesHtml = MARBLE_COLORS.map(c => {
             const isSelected = c.id === p.colorId;
-            const taken = takenBy[c.id] !== undefined && takenBy[c.id] !== idx;
+            const holderIdx = takenBy[c.id];
+            const isHeldByOther = holderIdx !== undefined && holderIdx !== idx;
+            const holderName = isHeldByOther
+              ? ((activeSlice[holderIdx].name || '').trim() || `Player ${holderIdx + 1}`)
+              : '';
             return `
               <button type="button"
                 data-player="${idx}" data-color="${c.id}"
-                title="${c.name}${taken ? ' (Taken)' : ''}"
-                ${taken ? 'disabled' : ''}
-                class="w-7 h-7 rounded-full transition-transform relative ${
+                title="${c.name}${isHeldByOther ? ` (Swap with ${escapeHtml(holderName)})` : ''}"
+                class="w-8 h-8 rounded-full transition-transform relative flex items-center justify-center ${
                   isSelected
-                    ? 'ring-3 ring-offset-2 ring-blue-500 scale-110'
-                    : taken
-                    ? 'opacity-25 cursor-not-allowed'
+                    ? 'ring-2 ring-offset-2 ring-blue-500 scale-110'
                     : 'hover:scale-110'
                 }"
                 style="background:${c.hex}; box-shadow: inset -2px -2px 4px rgba(0,0,0,0.22), inset 2px 2px 4px rgba(255,255,255,0.45);">
-                ${isSelected ? '<span class="text-[11px] font-black" style="color:' + c.text + '">✓</span>' : ''}
+                ${
+                  isSelected
+                    ? '<span class="text-xs font-black" style="color:' + c.text + '">✓</span>'
+                    : isHeldByOther
+                    ? '<span class="text-[11px] font-black opacity-75" style="color:' + c.text + '">⇄</span>'
+                    : ''
+                }
               </button>
             `;
           }).join('');
@@ -1628,7 +1620,7 @@
           }).join('');
 
           return `
-            <div class="p-3.5 rounded-2xl bg-slate-50/90 border-2 border-slate-100 flex flex-col gap-2.5">
+            <div class="player-card p-3.5 rounded-2xl bg-slate-50/90 border-2 border-slate-100 flex flex-col gap-2.5">
               <div class="flex items-center gap-3">
                 <div class="marble-orb w-12 h-12 shrink-0 flex items-center justify-center font-display font-bold ${flair.isEmoji ? 'text-2xl leading-none' : 'text-xl'}"
                      style="background:${color.hex}; color:${color.text}">
@@ -1663,21 +1655,33 @@
           input.addEventListener('input', (e) => {
             const idx = Number(e.target.dataset.nameIdx);
             state.lobbyPlayers[idx].name = e.target.value;
-            // Live update preview orb if using initial
             if ((state.lobbyPlayers[idx].flair || 'initial') === 'initial') {
-              const card = e.target.closest('div.p-3\\.5');
+              const card = e.target.closest('.player-card');
               const orb = card ? card.querySelector('.marble-orb') : null;
-              if (orb) orb.textContent = getPlayerFlair(state.lobbyPlayers[idx]).text;
+              if (orb) {
+                orb.textContent = getPlayerFlair(state.lobbyPlayers[idx]).text;
+              }
             }
           });
         });
 
-        // Color swatches
+        // Color swatches (all 8 colors always available; tapping a taken color swaps with that player)
         els.playerSetupGrid.querySelectorAll('button[data-color]').forEach(btn => {
           btn.addEventListener('click', () => {
             SoundFX.click();
             const idx = Number(btn.dataset.player);
-            state.lobbyPlayers[idx].colorId = btn.dataset.color;
+            const newColorId = btn.dataset.color;
+            const currentColorId = state.lobbyPlayers[idx].colorId;
+            if (newColorId === currentColorId) return;
+
+            for (let i = 0; i < state.playerCount; i++) {
+              if (i !== idx && state.lobbyPlayers[i].colorId === newColorId) {
+                state.lobbyPlayers[i].colorId = currentColorId;
+                break;
+              }
+            }
+
+            state.lobbyPlayers[idx].colorId = newColorId;
             renderPlayerCards();
           });
         });
@@ -1699,7 +1703,6 @@
       function buildPhysicsWorldAndTrack() {
         const { Engine, Bodies, Body, Composite, Events } = window.Matter;
 
-        // Fresh high-precision Matter.js engine (sleeping disabled so marbles never stall)
         const engine = Engine.create({
           gravity: { x: 0, y: 1.05 },
           enableSleeping: false,
@@ -1737,7 +1740,6 @@
         const pegPalette = ['#38BDF8', '#F472B6', '#34D399', '#FBBF24', '#A78BFA', '#FB923C'];
         const bumperPalette = ['#FB7185', '#FBBF24', '#34D399', '#60A5FA', '#C084FC'];
 
-        // Geometry Helpers (all walls & ramps built with zero-jam clearance)
         function addSlopedRamp(x1, y1, x2, y2, thickness, color, border) {
           const dx = x2 - x1;
           const dy = y2 - y1;
@@ -1857,7 +1859,6 @@
         // -----------------------------------------------------------------
         state.stageZones.push({ y: 165, label: 'Top Scramble Funnel', banner: '★ TOP SCRAMBLE ★', color: '#0284C7' });
 
-        // Closed start gate holds marbles neatly until "GO!"
         state.startGateBody = Bodies.rectangle(CENTER_X, 112, INNER_W + 40, 16, {
           isStatic: true,
           restitution: 0.2,
@@ -1866,7 +1867,6 @@
         });
         Composite.add(world, state.startGateBody);
 
-        // Mixer pegs + gentle scramble funnel (98px neck width > 2.7x marble diameter)
         addPeg(CENTER_X - 110, 170, 9, '#38BDF8');
         addPeg(CENTER_X,       185, 9, '#F472B6');
         addPeg(CENTER_X + 110, 170, 9, '#34D399');
@@ -1880,12 +1880,9 @@
         // TRACK ROUTING: TRACK 2 (SPLIT-LANE), TRACK 3 (GIANT SLIDE), TRACK 1 (CLASSIC)
         // -----------------------------------------------------------------
         if (state.trackId === 'splitlane') {
-          // ===============================================================
-          // TRACK 2: SPLIT-LANE SPEEDWAY (LEFT VS. RIGHT PATHS)
-          // ===============================================================
-          const laneW = INNER_W / 2; // 300px each
-          const leftCenter = INNER_L + laneW / 2;   // 170
-          const rightCenter = INNER_R - laneW / 2;  // 470
+          const laneW = INNER_W / 2;
+          const leftCenter = INNER_L + laneW / 2;
+          const rightCenter = INNER_R - laneW / 2;
 
           function buildLaneChallenge(type, isLeft, yStart) {
             const lx = isLeft ? INNER_L : CENTER_X + 8;
@@ -1959,7 +1956,6 @@
               return;
             }
 
-            // diamondChute
             state.laneLabels.push({ x: cx, y: yStart + 36, text: '💎 DIAMOND CHUTE', color: '#059669' });
             addDiamond(cx, yStart + 150, 48, '#34D399', '#059669');
             addDiamond(cx - 60, yStart + 320, 42, '#60A5FA', '#2563EB');
@@ -1972,10 +1968,8 @@
           function buildSplitSection(num, title, leftType, rightType, yStart) {
             state.stageZones.push({ y: yStart - 12, label: title, banner: `🔀 ${title.toUpperCase()}`, color: '#EA580C' });
 
-            // Sharp 50/50 splitter diamond right above the center divider wall (zero stalling)
             addDiamond(CENTER_X, yStart + 45, 44, '#F59E0B', '#B45309');
 
-            // Solid vertical center divider wall separating Left & Right lanes
             const wallH = 740;
             const wallY = yStart + 65 + wallH / 2;
             const divider = Bodies.rectangle(CENTER_X, wallY, 16, wallH, {
@@ -2033,9 +2027,6 @@
 
           cursorY = buildSplitSection(4, 'Final Fork Showdown', pairs[3][0], pairs[3][1], cursorY);
         } else if (state.trackId === 'giantslide') {
-          // ===============================================================
-          // TRACK 3: THE GIANT MARBLE SLIDE (FAST CHUTES & SWEEPING RAMPS)
-          // ===============================================================
           const slideOrderA = shuffle(['sweepingZigZag', 'cascadeSteps', 'turboLaunch']);
           const slideOrderB = shuffle(['crossTrackWarps', 'doubleSwitchback', 'turboCascade']);
 
@@ -2174,7 +2165,6 @@
             cursorY = buildSlideModule(mod, cursorY);
           }
 
-          // Halfway Comeback Funnel
           state.stageZones.push({ y: cursorY - 10, label: 'Halfway Comeback Funnel', banner: '★ HALFWAY COMEBACK ★', color: '#D97706' });
           addSlopedRamp(INNER_L - 40, cursorY + 35, CENTER_X - 54, cursorY + 230, 16, '#FBBF24', '#B45309');
           addSlopedRamp(INNER_R + 40, cursorY + 35, CENTER_X + 54, cursorY + 230, 16, '#FBBF24', '#B45309');
@@ -2188,9 +2178,6 @@
             cursorY = buildSlideModule(mod, cursorY);
           }
         } else {
-          // ===============================================================
-          // TRACK 1: CLASSIC TOYBOX MIX (~7,800px - 8,400px TALL)
-          // ===============================================================
           function buildClassicModule(type, startY) {
             const y = startY;
 
@@ -2295,7 +2282,6 @@
               return y + 700;
             }
 
-            // cascade
             state.stageZones.push({ y: y - 10, label: 'Cascade Wave Ramps', banner: '🌊 CASCADE WAVE RAMPS', color: '#0284C7' });
             for (let row = 0; row < 4; row++) {
               const ry = y + 55 + row * 155;
@@ -2310,7 +2296,6 @@
             return y + 715;
           }
 
-          // Guarantee both wildcard zones (Portals & Turbo Boosts) every round!
           const standardPool = shuffle(['plinko', 'zigzag', 'windmills', 'bumpers', 'diamonds', 'crosswheels', 'cascade']);
           const wildFirst = Math.random() < 0.5 ? 'portals' : 'boosts';
           const wildSecond = wildFirst === 'portals' ? 'boosts' : 'portals';
@@ -2322,7 +2307,6 @@
             cursorY = buildClassicModule(mod, cursorY);
           }
 
-          // Guaranteed Halfway Comeback Funnel
           state.stageZones.push({ y: cursorY - 10, label: 'Halfway Comeback Funnel', banner: '★ HALFWAY COMEBACK ★', color: '#D97706' });
           addSlopedRamp(INNER_L - 40, cursorY + 35, CENTER_X - 54, cursorY + 230, 16, '#FBBF24', '#B45309');
           addSlopedRamp(INNER_R + 40, cursorY + 35, CENTER_X + 54, cursorY + 230, 16, '#FBBF24', '#B45309');
@@ -2350,7 +2334,6 @@
         state.finishY = cursorY + 510;
         state.worldHeight = state.finishY + 360;
 
-        // Solid Outer Side Rails & Bottom Catch Floor
         const wallH = state.worldHeight + 400;
         const leftWall = Bodies.rectangle(RAIL_W / 2, wallH / 2 - 200, RAIL_W, wallH, {
           isStatic: true, restitution: 0.45, friction: 0.004, label: 'wall'
@@ -2363,7 +2346,6 @@
         });
         Composite.add(world, [leftWall, rightWall, catchFloor]);
 
-        // Spawn Surviving Marbles in Randomized Starting Order
         const shuffledPlayers = shuffle(state.activePlayers);
         const count = shuffledPlayers.length;
         const spread = Math.min(340, (count - 1) * 78);
@@ -2392,7 +2374,6 @@
           });
         });
 
-        // Collision Listener for Cheerful Audio & Visual Flashes
         Events.on(engine, 'collisionStart', (event) => {
           if (state.phase !== 'racing') return;
           for (const pair of event.pairs) {
@@ -2506,7 +2487,6 @@
           state.rafId = requestAnimationFrame(gameLoop);
         }
 
-        // Animated 3 - 2 - 1 - GO! Countdown
         els.countdownOverlay.classList.remove('hidden');
         const steps = [
           { delay: 0,    text: '3',   sub: 'Marbles Ready!', isGo: false },
@@ -2542,7 +2522,6 @@
           Composite.remove(state.engine.world, state.startGateBody);
           state.startGateBody = null;
         }
-        // Give each marble a tiny random horizontal nudge so every drop is uniquely chaotic
         for (const m of state.marbles) {
           Body.setVelocity(m.body, {
             x: randRange(-1.4, 1.4),
@@ -2662,7 +2641,6 @@
         els.championMarble.textContent = winFlair.text;
         els.championMarble.className = `marble-orb w-12 h-12 flex items-center justify-center font-display font-bold ${winFlair.isEmoji ? 'text-2xl leading-none' : 'text-xl'}`;
 
-        // Final standings: 1st = winner, then reverse elimination order
         const standings = [winner, ...state.eliminatedHistory.map(e => e.player)];
         els.finalStandingsList.innerHTML = standings.map((p, idx) => {
           const rank = idx + 1;
@@ -2857,7 +2835,6 @@
         let shouldSlow = false;
         let badgeLabel = '⚡ SLOW-MO PHOTO FINISH! ⚡';
 
-        // 1. Battle for 1st Place
         if (state.finishedCount === 0 && active.length >= 2) {
           const byY = active.slice().sort((a, b) => b.body.position.y - a.body.position.y);
           const lead = byY[0].body.position.y;
@@ -2872,7 +2849,6 @@
           }
         }
 
-        // 2. Battle to Avoid Elimination
         if (!shouldSlow && active.length === 2 && state.marbles.length >= 3) {
           const byY = active.slice().sort((a, b) => b.body.position.y - a.body.position.y);
           const ahead = byY[0].body.position.y;
@@ -2906,7 +2882,6 @@
         const { Engine, Body } = window.Matter;
         const dtSec = FIXED_DT_MS / 1000;
 
-        // Rotate all spinners smoothly
         for (const sp of state.spinners) {
           sp.angle += sp.angularSpeed;
           Body.setAngle(sp.body, sp.angle);
@@ -2925,7 +2900,6 @@
           const pos = m.body.position;
           const vel = m.body.velocity;
 
-          // Subtle motion trail for turbo-boosted marbles
           if (m.boostTrail > 0) {
             m.trail.push({ x: pos.x, y: pos.y, alpha: 0.75 });
             if (m.trail.length > 10) m.trail.shift();
@@ -2935,7 +2909,6 @@
 
           if (m.finished) continue;
 
-          // Check Teleporter Portals
           if (m.portalCooldown <= 0) {
             for (const p of state.portals) {
               const dist = Math.hypot(pos.x - p.entry.x, pos.y - p.entry.y);
@@ -2958,7 +2931,6 @@
             }
           }
 
-          // Check Turbo Speed Boost Pads
           for (const pad of state.boostPads) {
             const dx = pos.x - pad.x;
             const dy = pos.y - pad.y;
@@ -2982,7 +2954,6 @@
             }
           }
 
-          // Check Finish Line Crossing
           if (pos.y >= state.finishY) {
             m.finished = true;
             state.finishedCount += 1;
@@ -3054,7 +3025,6 @@
         state.cameraY += (targetY - state.cameraY) * smooth;
         state.cameraZoom += (state.targetZoom - state.cameraZoom) * (1 - Math.exp(-5 * dtSec));
 
-        // Update current Stage Zone pill
         const focusY = state.cameraY + viewWorldH * 0.35;
         let currentZone = state.stageZones[0];
         for (const z of state.stageZones) {
@@ -3111,7 +3081,7 @@
           ctx.restore();
         }
 
-        // Painted Left vs. Right Lane Labels (for Split-Lane Speedway)
+        // Painted Left vs. Right Lane Labels
         for (const lbl of state.laneLabels) {
           if (lbl.y < visTop - 80 || lbl.y > visBot + 80) continue;
           ctx.save();
@@ -3126,7 +3096,7 @@
           ctx.restore();
         }
 
-        // Start Gate Bar (while closed)
+        // Start Gate Bar
         if (state.startGateBody) {
           ctx.fillStyle = '#EF4444';
           ctx.fillRect(INNER_L, 105, INNER_W, 14);
@@ -3331,7 +3301,6 @@
           const pos = m.body.position;
           const c = m.player.color;
 
-          // Turbo speed trail
           if (m.trail.length > 1) {
             for (let i = 0; i < m.trail.length; i++) {
               const t = m.trail[i];
@@ -3342,13 +3311,11 @@
             }
           }
 
-          // Drop shadow
           ctx.beginPath();
           ctx.arc(pos.x + 2, pos.y + 4, MARBLE_R, 0, Math.PI * 2);
           ctx.fillStyle = 'rgba(15, 23, 42, 0.18)';
           ctx.fill();
 
-          // Glossy 3D sphere gradient
           const grad = ctx.createRadialGradient(
             pos.x - MARBLE_R * 0.32, pos.y - MARBLE_R * 0.35, MARBLE_R * 0.12,
             pos.x, pos.y, MARBLE_R
@@ -3365,7 +3332,6 @@
           ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
           ctx.stroke();
 
-          // Rotating rolling stripe & custom flair
           const flair = getPlayerFlair(m.player);
           ctx.save();
           ctx.translate(pos.x, pos.y);
@@ -3392,7 +3358,6 @@
           }
           ctx.restore();
 
-          // Crisp specular top highlight
           ctx.save();
           ctx.translate(pos.x - MARBLE_R * 0.32, pos.y - MARBLE_R * 0.34);
           ctx.rotate(-0.55);
@@ -3402,7 +3367,6 @@
           ctx.fill();
           ctx.restore();
 
-          // Floating compact name tag above marble
           ctx.font = '800 11px Nunito, sans-serif';
           ctx.fillStyle = 'rgba(30, 41, 59, 0.85)';
           ctx.textAlign = 'center';
@@ -3475,12 +3439,10 @@
             subSteps++;
           }
 
-          // Decay obstacle visual flashes
           for (const p of state.pegs) if (p.flash > 0) p.flash = Math.max(0, p.flash - realDtSec * 4);
           for (const b of state.bumpers) if (b.pulse > 0) b.pulse = Math.max(0, b.pulse - realDtSec * 4.5);
           for (const pad of state.boostPads) if (pad.flash > 0) pad.flash = Math.max(0, pad.flash - realDtSec * 3.5);
 
-          // Update particles & confetti
           for (let i = state.particles.length - 1; i >= 0; i--) {
             const pt = state.particles[i];
             pt.x += pt.vx * realDtSec;
@@ -3503,7 +3465,6 @@
           updateCamera(realDtSec);
           renderScene();
 
-          // Refresh HUD & Minimap at ~12Hz
           state.hudTimer += realDtSec;
           if (state.hudTimer >= 0.08) {
             state.hudTimer = 0;
@@ -3518,7 +3479,6 @@
       /* ===================================================================
          13. EVENT LISTENERS & INITIALIZATION
       =================================================================== */
-      // Unlock Web Audio & fade in Lobby music on first family tap/keypress
       function handleFirstGesture() {
         MusicEngine.unlock();
         window.removeEventListener('pointerdown', handleFirstGesture);
@@ -3580,7 +3540,6 @@
         returnToLobby();
       });
 
-      // Family Game Night Leaderboard Modal & Reset Buttons
       els.leaderboardHeaderBtn.addEventListener('click', () => {
         SoundFX.click();
         updateAllLeaderboardUIs();
@@ -3603,7 +3562,6 @@
       els.lobbyResetLeaderboardBtn.addEventListener('click', () => handleResetLeaderboardClick('lobby'));
       els.modalResetLeaderboardBtn.addEventListener('click', () => handleResetLeaderboardClick('modal'));
 
-      // Camera mode toggle buttons
       els.cameraModeBtns.querySelectorAll('button.cam-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           SoundFX.click();
@@ -3623,7 +3581,6 @@
         }
       });
 
-      // Initialize Lobby on Load
       window.addEventListener('load', () => {
         loadLeaderboard();
         ensureUniqueLobbyColors();
